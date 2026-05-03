@@ -1,10 +1,80 @@
-import ConsentRow from '../ui/ConsentRow'
-import FormInputField from '../ui/FormInputField'
+import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import PrimaryButton from '../ui/PrimaryButton'
-import RequirementChip from '../ui/RequirementChip'
-import { Link } from 'react-router-dom'
+import FormInputField from '../ui/FormInputField'
+import { useAuth } from '../../context/AuthContext'
+import { signUp } from '../../services/authService'
+import { validatePassword, getPasswordStrength } from '../../utils/auth'
 
 function RegisterFormPanel() {
+  const navigate = useNavigate()
+  const { login: authLogin, setError: setAuthError } = useAuth()
+  
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [errors, setErrors] = useState({})
+
+  const passwordStrength = getPasswordStrength(password)
+  const passwordValid = validatePassword(password).isStrong
+  const passwordMatch = password && passwordConfirm && password === passwordConfirm
+
+  const validateForm = () => {
+    const newErrors = {}
+
+    if (!firstName.trim()) newErrors.firstName = 'First name is required'
+    if (!lastName.trim()) newErrors.lastName = 'Last name is required'
+    if (!email.trim()) newErrors.email = 'Email is required'
+    if (!password) newErrors.password = 'Password is required'
+    if (!passwordConfirm) newErrors.passwordConfirm = 'Password confirmation is required'
+
+    if (password && !passwordValid) {
+      newErrors.password = 'Password must contain uppercase, lowercase, number, and special character'
+    }
+
+    if (password && passwordConfirm && !passwordMatch) {
+      newErrors.passwordConfirm = 'Passwords do not match'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSignUp = async (e) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!validateForm()) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await signUp({
+        email,
+        firstName,
+        lastName,
+        password,
+        passwordConfirm,
+      })
+
+      // Show verification message
+      setError(null)
+      alert(`Verification email sent to ${email}. Please check your inbox.`)
+      navigate('/login')
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Sign up failed'
+      setError(errorMessage)
+      setAuthError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <section className="w-full flex-1 px-5 py-8 md:px-10 md:py-12 lg:px-16 lg:py-16">
       <div className="mx-auto max-w-[460px]">
@@ -17,17 +87,34 @@ function RegisterFormPanel() {
           </h1>
         </header>
 
-        <div className="mt-8 space-y-6">
-          <FormInputField
-            label="FULL NAME"
-            placeholder="Enter your full name"
-            trailingMarker
-          />
+        <form onSubmit={handleSignUp} className="mt-8 space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <FormInputField
+              label="FIRST NAME"
+              placeholder="John"
+              value={firstName}
+              onChange={setFirstName}
+              error={errors.firstName}
+              trailingMarker={!!firstName}
+            />
+            <FormInputField
+              label="LAST NAME"
+              placeholder="Doe"
+              value={lastName}
+              onChange={setLastName}
+              error={errors.lastName}
+              trailingMarker={!!lastName}
+            />
+          </div>
+
           <FormInputField
             label="INSTITUTIONAL EMAIL"
             type="email"
             placeholder="name@organization.edu"
-            trailingMarker
+            value={email}
+            onChange={setEmail}
+            error={errors.email}
+            trailingMarker={!!email}
           />
 
           <div className="space-y-3">
@@ -35,23 +122,56 @@ function RegisterFormPanel() {
               label="SECURITY PROTOCOL"
               type="password"
               placeholder="••••••••••••"
-              trailingMarker
+              value={password}
+              onChange={setPassword}
+              error={errors.password}
+              trailingMarker={passwordValid}
             />
-            <div className="grid gap-2 sm:grid-cols-2">
-              <RequirementChip label="MIN 8 CHARACTERS" tone="pass" />
-              <RequirementChip label="SPECIAL SYMBOL" tone="warning" />
-            </div>
+            {password && (
+              <div className="space-y-2">
+                <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className={`h-full transition-all ${
+                      passwordStrength < 50
+                        ? 'bg-red-500'
+                        : passwordStrength < 75
+                          ? 'bg-yellow-500'
+                          : 'bg-green-500'
+                    }`}
+                    style={{ width: `${passwordStrength}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  Password strength: {passwordStrength < 50 ? 'Weak' : passwordStrength < 75 ? 'Medium' : 'Strong'}
+                </p>
+              </div>
+            )}
           </div>
 
-          <ConsentRow />
+          <FormInputField
+            label="CONFIRM PASSWORD"
+            type="password"
+            placeholder="••••••••••••"
+            value={passwordConfirm}
+            onChange={setPasswordConfirm}
+            error={errors.passwordConfirm}
+            trailingMarker={passwordMatch}
+          />
+
+          {error && (
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
           <PrimaryButton
+            type="submit"
+            loading={loading}
             className="py-4 text-[13px]"
-            trailingIcon={<span className="h-4 w-4 rounded-sm bg-white" />}
           >
             INITIALIZE ACCOUNT
           </PrimaryButton>
-        </div>
+        </form>
 
         <footer className="mt-10 space-y-5 text-center">
           <p className="text-sm text-slate-600">

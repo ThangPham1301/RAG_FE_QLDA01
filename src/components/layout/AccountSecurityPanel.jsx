@@ -1,7 +1,7 @@
 import { Fingerprint, KeyRound, ShieldCheck } from 'lucide-react'
 import SecuritySettingRow from '../ui/SecuritySettingRow'
 
-function AccountSecurityPanel() {
+function AccountSecurityPanel({ onChangePasswordClick }) {
     return (
         <section className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
             <h3 className="font-['Manrope'] text-xl font-extrabold text-slate-900">Security Protocols</h3>
@@ -14,9 +14,10 @@ function AccountSecurityPanel() {
                 />
                 <SecuritySettingRow
                     icon={<KeyRound size={17} />}
-                    title="Encryption Keys"
-                    description="Last rotated 12 days ago."
-                    actionLabel="ROTATE"
+                    title="Change Password"
+                    description="Update your password regularly."
+                    actionLabel="CHANGE"
+                    onAction={onChangePasswordClick}
                 />
                 <SecuritySettingRow
                     icon={<Fingerprint size={17} />}

@@ -1,4 +1,4 @@
-function SecuritySettingRow({ icon, title, description, actionLabel, actionTone = 'neutral', toggled = false }) {
+function SecuritySettingRow({ icon, title, description, actionLabel, actionTone = 'neutral', toggled = false, onAction }) {
     const actionClass =
         actionTone === 'danger'
             ? 'text-rose-700 hover:text-rose-600'
@@ -17,7 +17,7 @@ function SecuritySettingRow({ icon, title, description, actionLabel, actionTone 
             </div>
 
             {actionLabel ? (
-                <button type="button" className={`text-xs font-bold tracking-wide ${actionClass}`}>
+                <button type="button" onClick={onAction} className={`text-xs font-bold tracking-wide ${actionClass}`}>
                     {actionLabel}
                 </button>
             ) : (
