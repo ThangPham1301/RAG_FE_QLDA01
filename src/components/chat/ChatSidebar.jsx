@@ -50,43 +50,43 @@ function ChatSidebar() {
   const [projectName, setProjectName] = useState('')
 
   useEffect(() => {
-   if (!selectedProject?.id) return;
+    if (!selectedProject?.id) return;
 
-  let mounted = true
+    let mounted = true
 
-  const loadData = async () => {
-    try {
-      const [docsRes, sessionsRes] = await Promise.all([
-        DocumentsAPI.list(selectedProject.id),
-        ChatAPI.listSessions(selectedProject.id),
-      ])
+    const loadData = async () => {
+      try {
+        const [docsRes, sessionsRes] = await Promise.all([
+          DocumentsAPI.list(selectedProject.id),
+          ChatAPI.listSessions(selectedProject.id),
+        ])
 
-      if (!mounted) return
+        if (!mounted) return
 
-      const docs = docsRes.data.results || docsRes.data
-      const sessionsData = sessionsRes.data.results || sessionsRes.data || []
+        const docs = docsRes.data.results || docsRes.data
+        const sessionsData = sessionsRes.data.results || sessionsRes.data || []
 
-      setDocuments(docs)
-      setSessions(sessionsData)
+        setDocuments(docs)
+        setSessions(sessionsData)
 
-      if (sessionsData.length > 0) {
-        setCurrentSession(sessionsData[0])
-        setSelectedDocumentIds(sessionsData[0].selected_document_ids || [])
-      } else {
-        setCurrentSession(null)
-        setSelectedDocumentIds([])
+        if (sessionsData.length > 0) {
+          setCurrentSession(sessionsData[0])
+          setSelectedDocumentIds(sessionsData[0].selected_document_ids || [])
+        } else {
+          setCurrentSession(null)
+          setSelectedDocumentIds([])
+        }
+      } catch (err) {
+        console.error(err)
       }
-    } catch (err) {
-      console.error(err)
     }
-  }
 
-  loadData()
+    loadData()
 
-  return () => {
-    mounted = false
-  }
-}, [[selectedProject?.id], documentsRefreshToken])
+    return () => {
+      mounted = false
+    }
+  }, [selectedProject?.id, documentsRefreshToken])
 
   useEffect(() => {
     if (!location.pathname.startsWith('/chat')) {

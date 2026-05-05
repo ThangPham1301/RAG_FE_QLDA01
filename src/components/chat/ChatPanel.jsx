@@ -117,7 +117,7 @@ function ChatPanel() {
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col bg-[#f8f9ff]">
-      <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto px-8 py-6" data-testid="chat-scroll-container">
         <div className="mx-auto max-w-180 space-y-6">
           <div className="text-center">
             <span className="rounded-full bg-[#eff4ff] px-4 py-1 text-[10px] font-semibold tracking-wide text-slate-500">
@@ -202,7 +202,13 @@ function ChatPanel() {
           <div className="hidden items-center gap-2 lg:flex">
             <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">Context: {selectedDocumentIds.length} file(s)</span>
           </div>
-          <button type="button" onClick={sendQuestion} disabled={loading || !currentSession} className="ml-1 grid h-10 w-10 place-items-center rounded-xl bg-linear-to-r from-black to-blue-950 shadow-sm disabled:opacity-50">
+          <button
+            type="button"
+            onClick={sendQuestion}
+            disabled={loading || !currentSession}
+            aria-label="Send message"
+            className="ml-1 grid h-10 w-10 place-items-center rounded-xl bg-linear-to-r from-black to-blue-950 shadow-sm disabled:opacity-50"
+          >
             <span className="h-3 w-3 rounded-sm bg-white" />
           </button>
         </div>

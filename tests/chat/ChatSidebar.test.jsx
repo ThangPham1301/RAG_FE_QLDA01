@@ -32,12 +32,22 @@ const { ChatAPI, DocumentsAPI } = jest.requireMock('../../src/api/client')
 describe('ChatSidebar integration', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    ChatAPI.listSessions.mockResolvedValue({ data: { results: [{ id: 10, title: 'Session 10', selected_document_ids: [] }] } })
+    ChatAPI.listSessions.mockResolvedValue({
+      data: {
+        results: [
+          { id: 10, title: 'Session 10', selected_document_ids: [] },
+          { id: 20, title: 'Session 20', selected_document_ids: [200] },
+        ],
+      },
+    })
     ChatAPI.createSession.mockResolvedValue({ data: { id: 11, project: 1, title: 'New Chat', selected_document_ids: [] } })
     ChatAPI.updateSession.mockResolvedValue({ data: { id: 10, project: 1, title: 'Session 10', selected_document_ids: [100] } })
     DocumentsAPI.list.mockResolvedValue({
       data: {
-        results: [{ id: 100, title: 'Policy 2026', file_type: 'pdf', index_status: 'indexed' }],
+        results: [
+          { id: 100, title: 'Policy 2026', file_type: 'pdf', index_status: 'indexed' },
+          { id: 200, title: 'Policy 2027', file_type: 'pdf', index_status: 'indexed' },
+        ],
       },
     })
   })
@@ -73,6 +83,7 @@ describe('ChatSidebar integration', () => {
     })
 
     expect(getChatState().currentSession.id).toBe(11)
+    expect(getChatState().selectedDocumentIds).toEqual([])
   })
 
   it('opens context files modal and updates selected documents', async () => {
@@ -93,5 +104,17 @@ describe('ChatSidebar integration', () => {
     })
 
     expect(getChatState().selectedDocumentIds).toEqual([100])
+  })
+
+  it('switches active chat session without mixing selected documents', async () => {
+    const user = userEvent.setup()
+    const { getChatState } = renderWithChatContext(<ChatSidebar />)
+
+    expect(await screen.findByText('Session 20')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /session 20/i }))
+
+    expect(getChatState().currentSession.id).toBe(20)
+    expect(getChatState().selectedDocumentIds).toEqual([200])
   })
 })
