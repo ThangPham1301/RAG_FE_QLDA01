@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+let isRedirectingToLogin = false
 
 // Create axios instance
 const apiClient = axios.create({
@@ -53,7 +54,14 @@ apiClient.interceptors.response.use(
         localStorage.removeItem('accessToken')
         localStorage.removeItem('refreshToken')
         localStorage.removeItem('user')
-        window.location.href = '/login'
+
+        // Avoid hard-reload loops when we're already on auth pages.
+        const path = window.location.pathname
+        const isAuthRoute = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/verify-email'
+        if (!isAuthRoute && !isRedirectingToLogin) {
+          isRedirectingToLogin = true
+          window.location.replace('/login')
+        }
         return Promise.reject(refreshError)
       }
     }

@@ -1,19 +1,17 @@
-import ChatConversationPanel from '../components/layout/ChatConversationPanel'
+import ChatPanel from '../components/chat/ChatPanel'
 import ChatSidebar from '../components/layout/ChatSidebar'
 import ChatTopBar from '../components/layout/ChatTopBar'
-import SourceContextPanel from '../components/layout/SourceContextPanel'
 
 function ChatPage() {
   return (
-    <main className="min-h-screen bg-white">
-      <div className="flex min-h-screen">
+    <main className="h-screen overflow-hidden bg-white">
+      <div className="flex h-full">
         <ChatSidebar />
 
-        <div className="flex min-h-screen flex-1 flex-col">
+        <div className="ml-64 flex h-full min-h-0 min-w-0 flex-1 flex-col">
           <ChatTopBar />
           <div className="flex min-h-0 flex-1">
-            <ChatConversationPanel />
-            <SourceContextPanel />
+            <ChatPanel />
           </div>
         </div>
       </div>

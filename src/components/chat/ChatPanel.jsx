@@ -3,16 +3,17 @@ import { AlertCircle, CheckCircle2, Loader2, Paperclip } from 'lucide-react'
 import { ChatAPI, DocumentsAPI } from '../../api/client'
 import { useChat } from '../../context/useChat'
 
-function ChatConversationPanel() {
-  const { selectedProject, currentSession, setCurrentSession, selectedDocumentIds, setDocumentsRefreshToken } = useChat()
-  const session = currentSession
+function ChatPanel() {
+  const { selectedProject, currentSession, selectedDocumentIds, setDocumentsRefreshToken } = useChat()
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState({ phase: 'idle', message: '' })
+  const [sendError, setSendError] = useState('')
   const containerRef = useRef(null)
   const fileInputRef = useRef(null)
+  const inputRef = useRef(null)
 
   const buildUploadResultMessage = (responseData) => {
     const docs = responseData?.documents || (responseData?.document ? [responseData.document] : [])
@@ -25,94 +26,55 @@ function ChatConversationPanel() {
   }
 
   useEffect(() => {
-    if (!selectedProject) {
-      console.log('[Chat] No selectedProject')
-      return
+    const sessionId = currentSession?.id
+    if (!sessionId) {
+      setMessages([])
+      setSendError('')
+      return undefined
     }
-    console.log('[Chat] Loading sessions for project:', selectedProject.id)
-    ChatAPI.listSessions(selectedProject.id)
+
+    let mounted = true
+    setMessages([])
+
+    ChatAPI.getSession(sessionId)
       .then((response) => {
-        console.log('[Chat] listSessions response:', response.data)
-        const data = response.data.results || response.data || []
-        console.log('[Chat] Sessions found:', data.length)
-        const selectedSession = data.find((item) => item.project === selectedProject.id || item.project_id === selectedProject.id || item.project?.id === selectedProject.id)
-        if (selectedSession) {
-          console.log('[Chat] Using existing session:', selectedSession.id)
-          setCurrentSession(selectedSession)
-          ChatAPI.getSession(selectedSession.id).then((sessionResponse) => {
-            console.log('[Chat] Got session messages:', sessionResponse.data.messages?.length || 0)
-            setMessages(sessionResponse.data.messages || [])
-          })
-        } else {
-          console.log('[Chat] Creating new session for project:', selectedProject.id)
-          ChatAPI.createSession(selectedProject.id)
-            .then((createdResponse) => {
-              console.log('[Chat] Session created successfully:', createdResponse.data)
-              setCurrentSession(createdResponse.data)
-              setMessages([])
-            })
-            .catch((err) => {
-              console.error('[Chat] Create session error:', err)
-              if (err.response) {
-                console.error('[Chat] Error status:', err.response.status)
-                console.error('[Chat] Error data:', err.response.data)
-              }
-            })
-        }
+        if (!mounted) return
+        setMessages(response.data.messages || [])
+        setSendError('')
       })
       .catch((error) => {
-        console.error('[Chat] listSessions error:', error)
-        if (error.response) {
-          console.error('[Chat] Error status:', error.response.status)
-          console.error('[Chat] Error data:', error.response.data)
-        }
+        console.error('[Chat] getSession error:', error)
+        setSendError('Không thể tải lịch sử chat.')
       })
-  }, [selectedProject, setCurrentSession])
 
-  useEffect(() => {
-    if (!session) {
-      console.log('[Chat] Session is null/undefined')
-      return
+    return () => {
+      mounted = false
     }
-    console.log('[Chat] Session exists:', session.id)
-    setCurrentSession(session)
-  }, [session, setCurrentSession])
+  }, [currentSession?.id])
 
   useEffect(() => {
     if (containerRef.current) containerRef.current.scrollTop = containerRef.current.scrollHeight
   }, [messages])
 
+  useEffect(() => {
+    if (currentSession?.id && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [currentSession?.id])
+
   const sendQuestion = async () => {
     const question = input.trim()
-    console.log('[Chat] sendQuestion called', { question, session: !!session, loading, selectedDocumentIds })
-    
-    if (!question) {
-      console.warn('[Chat] Message is empty')
-      return
-    }
-    if (!session) {
-      console.warn('[Chat] No session found')
-      return
-    }
-    if (loading) {
-      console.warn('[Chat] Already loading')
-      return
-    }
+    if (!question || !currentSession || loading) return
 
     const userMessage = { id: `u-${Date.now()}`, role: 'user', content: question }
-    console.log('[Chat] Adding user message:', userMessage)
     setMessages((list) => [...list, userMessage])
     setInput('')
+    setSendError('')
     setLoading(true)
-    
+
     try {
-      console.log('[Chat] Sending message to API, sessionId:', session.id)
-      const response = await ChatAPI.sendMessage(session.id, question, selectedDocumentIds)
-      console.log('[Chat] API response:', response.data)
-      
-      const assistant = response.data.assistant_message || response.data.assistant || { role: 'assistant', content: response.data.answer || response.data.response || '' }
-      console.log('[Chat] Parsed assistant message:', assistant)
-      
+      const response = await ChatAPI.sendMessage(currentSession.id, question, selectedDocumentIds)
+      const assistant = response.data.message || response.data.assistant_message || response.data.assistant || { role: 'assistant', content: response.data.answer || response.data.response || '' }
       setMessages((list) => [...list.filter((item) => item.id !== userMessage.id), userMessage, assistant])
     } catch (error) {
       console.error('[Chat] Error sending message:', error)
@@ -120,6 +82,8 @@ function ChatConversationPanel() {
         console.error('[Chat] Error status:', error.response.status)
         console.error('[Chat] Error data:', error.response.data)
       }
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.detail || 'Không thể gửi câu hỏi. Vui lòng thử lại.'
+      setSendError(String(errorMessage))
     } finally {
       setLoading(false)
     }
@@ -154,7 +118,7 @@ function ChatConversationPanel() {
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col bg-[#f8f9ff]">
       <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
-        <div className="mx-auto max-w-[720px] space-y-6">
+        <div className="mx-auto max-w-180 space-y-6">
           <div className="text-center">
             <span className="rounded-full bg-[#eff4ff] px-4 py-1 text-[10px] font-semibold tracking-wide text-slate-500">
               {selectedProject ? selectedProject.name : 'No project selected'}
@@ -162,19 +126,30 @@ function ChatConversationPanel() {
           </div>
 
           <div className="space-y-4">
+            {!loading && messages.length === 0 && (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 px-6 py-8 text-center text-sm text-slate-500">
+                Start a new conversation by asking a question.
+              </div>
+            )}
+
             {messages.map((message) => (
-              <div key={message.id} className={`${message.role === 'user' ? 'ml-auto max-w-[430px] rounded-xl bg-blue-950 text-white' : 'max-w-[430px] rounded-xl bg-white text-slate-900'} px-6 py-4 shadow-sm`}>
+              <div key={message.id} className={`${message.role === 'user' ? 'ml-auto max-w-107.5 rounded-xl bg-blue-950 text-white' : 'max-w-107.5 rounded-xl bg-white text-slate-900'} px-6 py-4 shadow-sm`}>
                 <div className="text-sm leading-relaxed">{message.content}</div>
                 {message.sources && message.sources.length > 0 && (
                   <div className="mt-2 text-[11px] text-slate-500">
-                    Sources: {message.sources.map((source, index) => <span key={index} className="inline-block mr-2">{source.document_title || source.document_id}</span>)}
+                    Sources: {message.sources.map((source, index) => <span key={index} className="mr-2 inline-block">{source.document_title || source.document_id}</span>)}
+                  </div>
+                )}
+                {message.contexts && message.contexts.length > 0 && (
+                  <div className="mt-2 text-[11px] text-slate-500">
+                    Contexts: {message.contexts.map((context) => <span key={context.id} className="mr-2 inline-block">{context.document_id}</span>)}
                   </div>
                 )}
               </div>
             ))}
 
             {loading && (
-              <div className="max-w-[430px] rounded-xl bg-white px-6 py-4 text-slate-900 shadow-sm" aria-live="polite" aria-label="Assistant is responding">
+              <div className="max-w-107.5 rounded-xl bg-white px-6 py-4 text-slate-900 shadow-sm" aria-live="polite" aria-label="Assistant is responding">
                 <div className="flex items-center gap-2 text-sm text-slate-600">
                   <span>Đang phản hồi</span>
                   <span className="flex items-center gap-1">
@@ -191,28 +166,21 @@ function ChatConversationPanel() {
 
       <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-[#f8f9ff] px-8 py-6">
         {(uploading || uploadStatus.phase === 'success' || uploadStatus.phase === 'error') && (
-          <div className={`mx-auto mb-3 flex max-w-[760px] items-center gap-2 rounded-xl border px-3 py-2 text-xs ${uploadStatus.phase === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : uploadStatus.phase === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'}`}>
+          <div className={`mx-auto mb-3 flex max-w-190 items-center gap-2 rounded-xl border px-3 py-2 text-xs ${uploadStatus.phase === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : uploadStatus.phase === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'}`}>
             {(uploadStatus.phase === 'uploading' || uploadStatus.phase === 'indexing') && <Loader2 size={14} className="animate-spin" />}
             {uploadStatus.phase === 'success' && <CheckCircle2 size={14} />}
             {uploadStatus.phase === 'error' && <AlertCircle size={14} />}
             <span>{uploadStatus.message}</span>
           </div>
         )}
-        <form
-          className="mx-auto flex max-w-[760px] items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm"
-          onSubmit={(event) => {
-            console.log('[Chat] Form submit triggered')
-            event.preventDefault()
-            sendQuestion()
-          }}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            hidden
-            onChange={(event) => uploadFiles(event.target.files)}
-          />
+        {sendError && (
+          <div className="mx-auto mb-3 flex max-w-190 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">
+            <AlertCircle size={14} />
+            <span>{sendError}</span>
+          </div>
+        )}
+        <div className="mx-auto flex max-w-190 items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+          <input ref={fileInputRef} type="file" multiple hidden onChange={(event) => uploadFiles(event.target.files)} />
           <button
             type="button"
             onClick={() => fileInputRef.current && fileInputRef.current.click()}
@@ -223,24 +191,24 @@ function ChatConversationPanel() {
             {uploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
           </button>
           <input
+            ref={inputRef}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             type="text"
             placeholder="Ask the archive a specific question..."
+            disabled={loading}
             className="flex-1 bg-transparent px-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
           />
           <div className="hidden items-center gap-2 lg:flex">
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
-              Context: {selectedDocumentIds.length} file(s)
-            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">Context: {selectedDocumentIds.length} file(s)</span>
           </div>
-          <button type="submit" disabled={loading} className="ml-1 grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-r from-black to-blue-950 shadow-sm disabled:opacity-50">
+          <button type="button" onClick={sendQuestion} disabled={loading || !currentSession} className="ml-1 grid h-10 w-10 place-items-center rounded-xl bg-linear-to-r from-black to-blue-950 shadow-sm disabled:opacity-50">
             <span className="h-3 w-3 rounded-sm bg-white" />
           </button>
-        </form>
+        </div>
       </div>
     </section>
   )
 }
 
-export default ChatConversationPanel
+export default ChatPanel
