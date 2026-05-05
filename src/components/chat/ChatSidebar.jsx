@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   BarChart3,
@@ -8,12 +8,12 @@ import {
   LayoutDashboard,
   MessageSquare,
   Settings,
+  Upload,
   Users,
 } from 'lucide-react'
 import { ChatAPI, DocumentsAPI, ProjectsAPI } from '../../api/client'
 import { useChat } from '../../context/useChat'
 import ChatList from './ChatList'
-import ContextModal from './ContextModal'
 import ProjectSwitcher from './ProjectSwitcher'
 
 const NAV_ITEMS = [
@@ -35,58 +35,77 @@ function ChatSidebar() {
     setProjects,
     currentSession,
     setCurrentSession,
-    selectedDocumentIds,
-    setSelectedDocumentIds,
-    documentsRefreshToken,
   } = useChat()
 
   const [sessions, setSessions] = useState([])
-  const [documents, setDocuments] = useState([])
   const [isChatOpen, setIsChatOpen] = useState(true)
   const [projectSwitcherOpen, setProjectSwitcherOpen] = useState(false)
-  const [contextModalOpen, setContextModalOpen] = useState(false)
   const [creatingSession, setCreatingSession] = useState(false)
   const [creatingProject, setCreatingProject] = useState(false)
   const [projectName, setProjectName] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState({ phase: 'idle', message: '' })
+  const [documents, setDocuments] = useState([])
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
-    if (!selectedProject?.id) return;
+    if (!selectedProject?.id) {
+      setSessions([])
+      setCurrentSession(null)
+      setDocuments([])
+      return
+    }
 
     let mounted = true
 
-    const loadData = async () => {
-      try {
-        const [docsRes, sessionsRes] = await Promise.all([
-          DocumentsAPI.list(selectedProject.id),
-          ChatAPI.listSessions(selectedProject.id),
-        ])
-
+    ChatAPI.listSessions(selectedProject.id)
+      .then((response) => {
         if (!mounted) return
+        const data = response.data.results || response.data || []
+        setSessions(data)
 
-        const docs = docsRes.data.results || docsRes.data
-        const sessionsData = sessionsRes.data.results || sessionsRes.data || []
+        const currentSessionId = currentSession?.id
+        const nextSession = currentSessionId
+          ? data.find((item) => item.id === currentSessionId) || data[0] || null
+          : data[0] || null
 
-        setDocuments(docs)
-        setSessions(sessionsData)
-
-        if (sessionsData.length > 0) {
-          setCurrentSession(sessionsData[0])
-          setSelectedDocumentIds(sessionsData[0].selected_document_ids || [])
+        if (nextSession) {
+          setCurrentSession(nextSession)
         } else {
           setCurrentSession(null)
-          setSelectedDocumentIds([])
+          setDocuments([])
         }
-      } catch (err) {
-        console.error(err)
-      }
-    }
-
-    loadData()
+      })
+      .catch((error) => console.error(error))
 
     return () => {
       mounted = false
     }
-  }, [selectedProject?.id, documentsRefreshToken])
+  }, [selectedProject?.id, currentSession?.id, setCurrentSession])
+
+  useEffect(() => {
+    const sessionId = currentSession?.id
+    if (!sessionId) {
+      setDocuments([])
+      return
+    }
+
+    let mounted = true
+
+    ChatAPI.getSession(sessionId)
+      .then((response) => {
+        if (!mounted) return
+        const detail = response.data
+        setCurrentSession(detail)
+        setDocuments(detail.documents || [])
+        setSessions((list) => list.map((item) => (item.id === detail.id ? detail : item)))
+      })
+      .catch((error) => console.error(error))
+
+    return () => {
+      mounted = false
+    }
+  }, [currentSession?.id, setCurrentSession])
 
   useEffect(() => {
     if (!location.pathname.startsWith('/chat')) {
@@ -94,7 +113,7 @@ function ChatSidebar() {
     }
   }, [location.pathname])
 
-  const selectedDocsCount = useMemo(() => selectedDocumentIds.length, [selectedDocumentIds])
+  const selectedDocsCount = useMemo(() => documents.length, [documents])
 
   const onCreateProject = async () => {
     if (!projectName) return
@@ -118,7 +137,6 @@ function ChatSidebar() {
       const created = response.data
       setSessions((list) => [created, ...list])
       setCurrentSession(created)
-      setSelectedDocumentIds(created.selected_document_ids || [])
     } catch (error) {
       console.error(error)
     } finally {
@@ -128,18 +146,38 @@ function ChatSidebar() {
 
   const handleSessionSelect = (session) => {
     setCurrentSession(session)
-    setSelectedDocumentIds(session.selected_document_ids || [])
   }
 
-  const persistSelection = async (nextIds) => {
-    setSelectedDocumentIds(nextIds)
-    if (!currentSession) return
+  const uploadFiles = async (files) => {
+    if (!currentSession?.id || !files || files.length === 0) return
+    const formData = new FormData()
+    for (const file of files) formData.append('files', file)
+    let phaseTimer = null
     try {
-      const response = await ChatAPI.updateSession(currentSession.id, { selected_document_ids: nextIds })
-      setCurrentSession(response.data)
-      setSessions((list) => list.map((item) => (item.id === response.data.id ? response.data : item)))
+      setUploading(true)
+      setUploadStatus({ phase: 'uploading', message: 'Đang tải file lên...' })
+      phaseTimer = setTimeout(() => {
+        setUploadStatus({ phase: 'indexing', message: 'Đang index file để có thể hỏi đáp...' })
+      }, 900)
+
+      const response = await DocumentsAPI.upload(currentSession.id, formData)
+      if (phaseTimer) clearTimeout(phaseTimer)
+      const uploadedDocs = response.data.documents || []
+      setUploadStatus({ phase: 'success', message: `Đã tải lên ${uploadedDocs.length} file.` })
+
+      const refreshed = await ChatAPI.getSession(currentSession.id)
+      const detail = refreshed.data
+      setCurrentSession(detail)
+      setDocuments(detail.documents || [])
+      setSessions((list) => list.map((item) => (item.id === detail.id ? detail : item)))
     } catch (error) {
       console.error(error)
+      if (phaseTimer) clearTimeout(phaseTimer)
+      const errorMessage = error?.response?.data?.detail || error?.response?.data?.message || 'Upload failed'
+      setUploadStatus({ phase: 'error', message: String(errorMessage) })
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -221,6 +259,10 @@ function ChatSidebar() {
                     <span className="font-medium">New Chat</span>
                   </button>
 
+                  {!selectedProject && (
+                    <div className="px-2 text-xs font-semibold text-rose-600">Create a project first</div>
+                  )}
+
                   <ProjectSwitcher
                     projects={projects}
                     selectedProject={selectedProject}
@@ -238,14 +280,47 @@ function ChatSidebar() {
 
                   <ChatList sessions={sessions} activeSessionId={currentSession?.id} onSelect={handleSessionSelect} />
 
-                  <button
-                    type="button"
-                    onClick={() => setContextModalOpen(true)}
-                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm text-slate-700 transition hover:bg-white/70"
-                  >
-                    <span className="grid h-7 w-7 place-items-center rounded-md bg-slate-500 text-slate-100">{selectedDocsCount}</span>
-                    <span className="font-medium">Context Files</span>
-                  </button>
+                  <div className="space-y-2">
+                    <div className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Files</div>
+                    <div className="space-y-1">
+                      {documents.length > 0 ? (
+                        documents.map((document) => (
+                          <div key={document.id} className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm text-slate-700 transition hover:bg-white/70">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-medium">{document.title}</div>
+                              <div className="text-[10px] text-slate-500">{document.index_status || 'pending'}</div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-2 py-2 text-sm text-slate-600">No files in this chat</div>
+                      )}
+                    </div>
+
+                    <div className="px-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        hidden
+                        onChange={(event) => uploadFiles(event.target.files)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                        disabled={!currentSession || uploading}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-slate-700 transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Upload size={14} />
+                        <span className="font-medium">Upload file</span>
+                      </button>
+                      {(uploading || uploadStatus.phase === 'success' || uploadStatus.phase === 'error') && (
+                        <div className={`mt-2 flex items-center gap-2 rounded-lg border px-2 py-2 text-xs ${uploadStatus.phase === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : uploadStatus.phase === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'}`}>
+                          <span>{uploadStatus.message}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -297,20 +372,6 @@ function ChatSidebar() {
           })}
         </div>
       </div>
-
-      <ContextModal
-        open={contextModalOpen}
-        documents={documents}
-        selectedDocumentIds={selectedDocumentIds}
-        onToggle={(documentId) => {
-          const nextIds = selectedDocumentIds.includes(documentId)
-            ? selectedDocumentIds.filter((id) => id !== documentId)
-            : [...selectedDocumentIds, documentId]
-          persistSelection(nextIds)
-        }}
-        onClose={() => setContextModalOpen(false)}
-        onClear={() => persistSelection([])}
-      />
     </aside>
   )
 }

@@ -1,30 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import topbarAvatar from '../assets/library/topbar-avatar.png'
-import { DocumentsAPI } from '../api/client'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
 import LibraryDocumentPanel from '../components/layout/LibraryDocumentPanel'
 import LibraryHeader from '../components/layout/LibraryHeader'
 import LibraryStatsGrid from '../components/layout/LibraryStatsGrid'
 import WorkspaceTopBar from '../components/layout/WorkspaceTopBar'
+import { useChat } from '../context/useChat'
 
 function LibraryPage() {
     const [documents, setDocuments] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState('')
+    const { currentSession } = useChat()
 
     const loadDocuments = useCallback(async () => {
         setIsLoading(true)
         setError('')
         try {
-            const response = await DocumentsAPI.list()
-            const list = response.data.results || response.data || []
-            setDocuments(list.filter((doc) => Boolean(doc.uploaded_chat_session)))
+            setDocuments(currentSession?.documents || [])
         } catch (err) {
             setError('Không thể tải danh sách tài liệu.')
         } finally {
             setIsLoading(false)
         }
-    }, [])
+    }, [currentSession?.documents])
 
     useEffect(() => {
         loadDocuments()

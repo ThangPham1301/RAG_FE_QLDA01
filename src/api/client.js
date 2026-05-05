@@ -77,9 +77,9 @@ export const ProjectsAPI = {
 export const ChatAPI = {
   listSessions: (projectId) => client.get(`/chat/sessions/?project_id=${projectId}`),
   createSession: (projectId, title = null) => client.post('/chat/sessions/', { project: projectId, title: title || 'New Chat' }),
-  sendMessage: (sessionId, content, selectedDocumentIds = []) => client.post(`/chat/sessions/${sessionId}/send_message/`, {
+  sendMessage: (sessionId, content) => client.post('/chat/send/', {
+    chat_session_id: sessionId,
     content,
-    selected_document_ids: selectedDocumentIds,
   }),
   getSession: (id) => client.get(`/chat/sessions/${id}/`),
   updateSession: (id, payload) => client.patch(`/chat/sessions/${id}/`, payload),
@@ -87,15 +87,9 @@ export const ChatAPI = {
 }
 
 export const DocumentsAPI = {
-  list: (projectId = null) => {
-    if (projectId === null || projectId === undefined || projectId === '') {
-      return client.get('/documents/')
-    }
-    return client.get(`/documents/?project=${projectId}`)
-  },
-  upload: (projectId, formData, chatSessionId = null) => {
-    if (!formData.get('project')) formData.append('project', String(projectId))
-    if (chatSessionId && !formData.get('chat_session')) formData.append('chat_session', String(chatSessionId))
+  list: (chatSessionId) => client.get(`/documents/?chat_session_id=${chatSessionId}`),
+  upload: (chatSessionId, formData) => {
+    if (!formData.get('chat_session_id')) formData.append('chat_session_id', String(chatSessionId))
     return client.post('/documents/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

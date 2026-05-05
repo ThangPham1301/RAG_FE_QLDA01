@@ -6,8 +6,6 @@ export function ChatProvider({ children }) {
   const [projects, setProjects] = useState([])
   const [selectedProject, setSelectedProject] = useState(null)
   const [currentSession, setCurrentSession] = useState(null)
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState([])
-  const [documentsRefreshToken, setDocumentsRefreshToken] = useState(0)
 
   useEffect(() => {
     let mounted = true
@@ -32,10 +30,6 @@ export function ChatProvider({ children }) {
       setProjects,
       currentSession,
       setCurrentSession,
-      selectedDocumentIds,
-      setSelectedDocumentIds,
-      documentsRefreshToken,
-      setDocumentsRefreshToken,
     }}>
       {children}
     </ChatContext.Provider>
