@@ -1,7 +1,7 @@
 import { FilePlus2, FolderPlus, ShieldAlert, Sparkles } from 'lucide-react'
 import ActivityListItem from '../ui/ActivityListItem'
 
-const ACTIVITIES = [
+const DEFAULT_ACTIVITIES = [
     {
         title: 'Neuro-AI Paper Indexed',
         description: 'Dr. Thorne uploaded "Neural Synapse Mapping in LLMs"',
@@ -28,7 +28,7 @@ const ACTIVITIES = [
     },
 ]
 
-function DashboardRecentActivityPanel() {
+function DashboardRecentActivityPanel({ activities = DEFAULT_ACTIVITIES }) {
     return (
         <section className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
             <div className="flex items-center justify-between">
@@ -37,7 +37,7 @@ function DashboardRecentActivityPanel() {
             </div>
 
             <div className="mt-4 space-y-3">
-                {ACTIVITIES.map((item) => (
+                {activities.map((item) => (
                     <ActivityListItem key={item.title} {...item} />
                 ))}
             </div>

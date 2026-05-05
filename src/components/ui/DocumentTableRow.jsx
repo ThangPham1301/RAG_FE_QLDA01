@@ -1,4 +1,4 @@
-function DocumentTableRow({ icon, title, fileInfo, category, modified, status, actions }) {
+function DocumentTableRow({ icon, title, fileInfo, category, source = null, modified, status, actions, checked = false, onToggle = null }) {
     const statusColors = {
         INDEXED: 'bg-emerald-100 text-emerald-700',
         PROCESSING: 'bg-amber-100 text-amber-700',
@@ -9,7 +9,11 @@ function DocumentTableRow({ icon, title, fileInfo, category, modified, status, a
         <tr className="border-b border-slate-200 hover:bg-slate-50">
             <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
-                    <input type="checkbox" className="rounded" />
+                    <input
+                        type="checkbox"
+                        {...(onToggle ? { checked, onChange: onToggle } : { defaultChecked: checked })}
+                        className="rounded"
+                    />
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-100 text-blue-700">
                         {icon}
                     </div>
@@ -22,6 +26,11 @@ function DocumentTableRow({ icon, title, fileInfo, category, modified, status, a
             <td className="px-4 py-3">
                 <span className="text-sm text-slate-600">{category}</span>
             </td>
+            {source !== null && (
+                <td className="px-4 py-3">
+                    <span className="text-sm text-slate-600">{source}</span>
+                </td>
+            )}
             <td className="px-4 py-3">
                 <span className="text-sm text-slate-600">{modified}</span>
             </td>

@@ -1,7 +1,7 @@
 import { Database, Files, FolderSync, HardDrive } from 'lucide-react'
 import DashboardMetricCard from '../ui/DashboardMetricCard'
 
-const METRICS = [
+const DEFAULT_METRICS = [
     {
         title: 'TOTAL DOCUMENTS',
         value: '1,284',
@@ -32,10 +32,10 @@ const METRICS = [
     },
 ]
 
-function DashboardMetricsGrid() {
+function DashboardMetricsGrid({ metrics = DEFAULT_METRICS }) {
     return (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {METRICS.map((metric) => (
+            {metrics.map((metric) => (
                 <DashboardMetricCard key={metric.title} {...metric} />
             ))}
         </section>

@@ -15,7 +15,7 @@ const NAV_ITEMS = [
     { label: 'Library', icon: BookOpen, to: '/library' },
     { label: 'Chat', icon: MessageSquare, to: '/chat' },
     { label: 'Summarize', icon: ChartNoAxesCombined },
-    { label: 'Analytics', icon: BarChart3 },
+    { label: 'Statistics', icon: BarChart3, to: '/statistics' },
     { label: 'Team', icon: Users },
     { label: 'Settings', icon: Settings, to: '/account' },
 ]

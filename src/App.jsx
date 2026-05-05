@@ -17,7 +17,7 @@ function App() {
     <AuthProvider>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
-        
+
         {/* Public routes - redirect to dashboard if already authenticated */}
         <Route
           path="/login"
@@ -55,6 +55,14 @@ function App() {
         {/* Protected routes - redirect to login if not authenticated */}
         <Route
           path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/statistics"
           element={
             <ProtectedRoute>
               <DashboardPage />

@@ -100,7 +100,7 @@ function ChatPanel() {
       phaseTimer = setTimeout(() => {
         setUploadStatus({ phase: 'indexing', message: 'Đang index file để có thể hỏi đáp...' })
       }, 900)
-      const response = await DocumentsAPI.upload(selectedProject.id, formData)
+      const response = await DocumentsAPI.upload(selectedProject.id, formData, currentSession?.id || null)
       if (phaseTimer) clearTimeout(phaseTimer)
       setUploadStatus({ phase: 'success', message: buildUploadResultMessage(response.data) })
       setDocumentsRefreshToken((value) => value + 1)

@@ -87,9 +87,15 @@ export const ChatAPI = {
 }
 
 export const DocumentsAPI = {
-  list: (projectId) => client.get(`/documents/?project=${projectId}`),
-  upload: (projectId, formData) => {
+  list: (projectId = null) => {
+    if (projectId === null || projectId === undefined || projectId === '') {
+      return client.get('/documents/')
+    }
+    return client.get(`/documents/?project=${projectId}`)
+  },
+  upload: (projectId, formData, chatSessionId = null) => {
     if (!formData.get('project')) formData.append('project', String(projectId))
+    if (chatSessionId && !formData.get('chat_session')) formData.append('chat_session', String(chatSessionId))
     return client.post('/documents/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
@@ -97,6 +103,10 @@ export const DocumentsAPI = {
   index: (id) => client.post(`/documents/${id}/index/`),
   summary: (id, force = false) => client.post(`/documents/${id}/summary/`, { force }),
   getSummary: (id) => client.get(`/documents/${id}/summary/`),
+}
+
+export const StatisticsAPI = {
+  overview: () => client.get('/projects/statistics/'),
 }
 
 export default client
