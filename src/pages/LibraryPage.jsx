@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import topbarAvatar from '../assets/library/topbar-avatar.png'
+import { DocumentsAPI } from '../api/client'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
 import LibraryDocumentPanel from '../components/layout/LibraryDocumentPanel'
 import LibraryHeader from '../components/layout/LibraryHeader'
@@ -11,19 +12,38 @@ function LibraryPage() {
     const [documents, setDocuments] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState('')
-    const { currentSession } = useChat()
+    const { selectedChat, setSelectedChat } = useChat()
 
     const loadDocuments = useCallback(async () => {
         setIsLoading(true)
         setError('')
         try {
-            setDocuments(currentSession?.documents || [])
+            setDocuments(selectedChat?.documents || [])
         } catch (err) {
             setError('Không thể tải danh sách tài liệu.')
         } finally {
             setIsLoading(false)
         }
-    }, [currentSession?.documents])
+    }, [selectedChat?.documents])
+
+    const handleDeleteDocument = useCallback(async (document) => {
+        const confirmed = window.confirm(`Xóa file "${document.title || 'Document'}"? Hành động này không thể hoàn tác.`)
+        if (!confirmed) return
+
+        try {
+            await DocumentsAPI.delete(document.id)
+            setDocuments((list) => list.filter((item) => item.id !== document.id))
+            setSelectedChat((current) => {
+                if (!current) return current
+                return {
+                    ...current,
+                    documents: (current.documents || []).filter((item) => item.id !== document.id),
+                }
+            })
+        } catch (err) {
+            setError('Không thể xóa file.')
+        }
+    }, [setSelectedChat])
 
     useEffect(() => {
         loadDocuments()
@@ -58,6 +78,7 @@ function LibraryPage() {
                                 isLoading={isLoading}
                                 error={error}
                                 onRefresh={loadDocuments}
+                                onDeleteDocument={handleDeleteDocument}
                             />
                         </div>
                     </div>

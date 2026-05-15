@@ -3,14 +3,14 @@ import { ChevronDown, Plus } from 'lucide-react'
 function ProjectSwitcher({ projects, selectedProject, open, onToggle, onSelect, creating, name, setName, onCreate }) {
   return (
     <div className="space-y-2">
-      <div className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Project</div>
+      <div className="px-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Project</div>
 
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm text-slate-700 transition hover:bg-white/70"
+        className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-slate-500 text-slate-100">
+        <span className="grid h-7 w-7 place-items-center rounded-xl bg-slate-900 text-white">
           {selectedProject?.name ? selectedProject.name.charAt(0).toUpperCase() : 'P'}
         </span>
         <div className="min-w-0 flex-1">
@@ -28,9 +28,9 @@ function ProjectSwitcher({ projects, selectedProject, open, onToggle, onSelect, 
                   key={project.id}
                   type="button"
                   onClick={() => onSelect(project)}
-                  className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition ${selectedProject && selectedProject.id === project.id ? 'bg-[#e5eeff] font-semibold text-blue-800' : 'text-slate-700 hover:bg-white/70'}`}
+                  className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition-all duration-200 ${selectedProject && selectedProject.id === project.id ? 'bg-slate-950 font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]' : 'text-slate-700 hover:bg-slate-50'}`}
                 >
-                  <span className={`grid h-7 w-7 place-items-center rounded-md ${selectedProject && selectedProject.id === project.id ? 'bg-blue-800 text-white' : 'bg-slate-500 text-slate-100'}`}>
+                  <span className={`grid h-7 w-7 place-items-center rounded-xl ${selectedProject && selectedProject.id === project.id ? 'bg-white/12 text-white' : 'bg-slate-900 text-white'}`}>
                     {project.name ? project.name.charAt(0).toUpperCase() : 'P'}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -48,13 +48,13 @@ function ProjectSwitcher({ projects, selectedProject, open, onToggle, onSelect, 
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="New project name"
-              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
+              className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-200/60"
             />
             <button
               type="button"
               onClick={onCreate}
               disabled={creating}
-              className="grid h-10 w-10 place-items-center rounded-lg bg-blue-950 text-white disabled:opacity-60"
+              className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm disabled:opacity-60"
               title="New project"
             >
               <Plus size={16} />

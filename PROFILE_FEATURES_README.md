@@ -202,8 +202,6 @@ Content-Type: application/json
 
 ## 🧪 Testing
 
-See [TESTING_GUIDE.md](./TESTING_GUIDE.md) for step-by-step test cases.
-
 Quick test:
 
 1. Go to Account Settings
@@ -217,7 +215,6 @@ Quick test:
 
 - **[PROFILE_MANAGEMENT_SETUP.md](./PROFILE_MANAGEMENT_SETUP.md)** - Detailed setup & configuration
 - **[PROFILE_IMPLEMENTATION_COMPLETE.md](./PROFILE_IMPLEMENTATION_COMPLETE.md)** - Technical implementation details
-- **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** - Complete test cases with expected outcomes
 
 ---
 
@@ -282,7 +279,6 @@ Quick test:
 Refer to documentation files:
 
 - Setup issues → **PROFILE_MANAGEMENT_SETUP.md**
-- Test cases → **TESTING_GUIDE.md**
 - Technical details → **PROFILE_IMPLEMENTATION_COMPLETE.md**
 
 ---

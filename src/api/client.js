@@ -76,13 +76,14 @@ export const ProjectsAPI = {
 
 export const ChatAPI = {
   listSessions: (projectId) => client.get(`/chat/sessions/?project_id=${projectId}`),
-  createSession: (projectId, title = null) => client.post('/chat/sessions/', { project: projectId, title: title || 'New Chat' }),
+  createSession: (projectId, title = null) => client.post('/chat/sessions/', { project_id: projectId, title: title || 'New Chat' }),
   sendMessage: (sessionId, content) => client.post('/chat/send/', {
     chat_session_id: sessionId,
     content,
   }),
   getSession: (id) => client.get(`/chat/sessions/${id}/`),
   updateSession: (id, payload) => client.patch(`/chat/sessions/${id}/`, payload),
+  delete: (id) => client.delete(`/chat/sessions/${id}/`),
   getMessages: (sessionId) => client.get(`/chat/sessions/${sessionId}/messages/`),
 }
 
@@ -94,6 +95,7 @@ export const DocumentsAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
+  delete: (id) => client.delete(`/documents/${id}/`),
   index: (id) => client.post(`/documents/${id}/index/`),
   summary: (id, force = false) => client.post(`/documents/${id}/summary/`, { force }),
   getSummary: (id) => client.get(`/documents/${id}/summary/`),

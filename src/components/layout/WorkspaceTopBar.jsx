@@ -29,36 +29,36 @@ function WorkspaceTopBar({
     }
 
     return (
-        <header className="flex h-[76px] items-center justify-between border-b border-slate-200 bg-[#f8f9ff]/80 px-6 backdrop-blur-md">
-            <div className="flex h-12 w-full max-w-sm items-center gap-3 rounded-full bg-[#eff4ff] px-4">
-                <Search size={16} className="text-slate-500" />
+        <header className="flex h-[78px] items-center justify-between border-b border-slate-200/80 bg-white/80 px-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+            <div className="flex h-12 w-full max-w-md items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 text-slate-500 shadow-sm">
+                <Search size={16} className="shrink-0 text-slate-500" />
                 <input
                     type="text"
                     placeholder={placeholder}
-                    className="w-full bg-transparent text-sm text-slate-600 outline-none placeholder:text-slate-500"
+                    className="w-full bg-transparent text-sm text-slate-600 outline-none placeholder:text-slate-400"
                 />
             </div>
 
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 text-slate-500">
                     <button
                         type="button"
-                        className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white transition hover:border-slate-300 hover:text-slate-700"
+                        className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
                         aria-label="Notifications"
                     >
                         <Bell size={16} />
                     </button>
                     <button
                         type="button"
-                        className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white transition hover:border-slate-300 hover:text-slate-700"
+                        className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
                         aria-label="Preferences"
                     >
                         <SlidersHorizontal size={16} />
                     </button>
                 </div>
-                <div className="h-8 w-px bg-slate-300" />
-                <div className="flex items-center gap-3">
-                    <img src={avatarSrc} alt={profileName} className="h-10 w-10 rounded-full object-cover" />
+                <div className="h-8 w-px bg-slate-200" />
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 shadow-sm">
+                    <img src={avatarSrc} alt={profileName} className="h-10 w-10 rounded-xl object-cover ring-2 ring-slate-100" />
                     <div className="text-right leading-tight">
                         <p className="font-['Manrope'] text-sm font-bold text-slate-900">{profileName}</p>
                         <p className="text-[11px] font-semibold text-slate-500">{profileRole}</p>
@@ -68,7 +68,7 @@ function WorkspaceTopBar({
                     type="button"
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
                     aria-label="Log out"
                 >
                     <LogOut size={15} />

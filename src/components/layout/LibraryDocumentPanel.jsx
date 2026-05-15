@@ -1,4 +1,4 @@
-import { Download, ExternalLink, RefreshCw, Search } from 'lucide-react'
+import { Download, ExternalLink, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import DocumentTableRow from '../ui/DocumentTableRow'
 
@@ -21,7 +21,7 @@ const normalizeStatus = (indexStatus) => {
     return 'SYNCED'
 }
 
-function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', onRefresh = null }) {
+function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', onRefresh = null, onDeleteDocument = null }) {
     const [searchValue, setSearchValue] = useState('')
     const [projectFilter, setProjectFilter] = useState('all')
 
@@ -33,7 +33,7 @@ function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', o
     const filteredDocuments = useMemo(() => {
         return documents.filter((document) => {
             const matchesProject = projectFilter === 'all' || document.project_name === projectFilter
-            const sourceText = document.uploaded_chat_session_title || ''
+            const sourceText = document.chat_session_title || ''
             const query = searchValue.trim().toLowerCase()
             const matchesSearch = !query
                 || document.title?.toLowerCase().includes(query)
@@ -119,7 +119,7 @@ function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', o
                                     title={doc.title}
                                     fileInfo={toFileInfo(doc)}
                                     category={doc.project_name || '—'}
-                                    source={doc.uploaded_chat_session_title || 'Không gắn chat'}
+                                    source={doc.chat_session_title || 'Không gắn chat'}
                                     modified={formatDate(doc.updated_at)}
                                     status={normalizeStatus(doc.index_status)}
                                     actions={(
@@ -134,6 +134,16 @@ function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', o
                                                 >
                                                     <ExternalLink size={15} className="text-slate-500" />
                                                 </a>
+                                            )}
+                                            {onDeleteDocument && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onDeleteDocument(doc)}
+                                                    className="rounded p-2 hover:bg-rose-50"
+                                                    title="Delete file"
+                                                >
+                                                    <Trash2 size={15} className="text-rose-500" />
+                                                </button>
                                             )}
                                         </div>
                                     )}

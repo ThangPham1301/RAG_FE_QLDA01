@@ -5,7 +5,7 @@ import { ChatContext } from './chatContext'
 export function ChatProvider({ children }) {
   const [projects, setProjects] = useState([])
   const [selectedProject, setSelectedProject] = useState(null)
-  const [currentSession, setCurrentSession] = useState(null)
+  const [selectedChat, setSelectedChat] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -28,8 +28,8 @@ export function ChatProvider({ children }) {
       selectedProject,
       setSelectedProject,
       setProjects,
-      currentSession,
-      setCurrentSession,
+      selectedChat,
+      setSelectedChat,
     }}>
       {children}
     </ChatContext.Provider>
