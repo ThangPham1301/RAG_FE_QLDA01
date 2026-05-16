@@ -88,7 +88,12 @@ export const ChatAPI = {
 }
 
 export const DocumentsAPI = {
-  list: (chatSessionId) => client.get(`/documents/?chat_session_id=${chatSessionId}`),
+  list: (params = {}) => {
+    if (typeof params === 'string' || typeof params === 'number') {
+      return client.get('/documents/', { params: { chat_session_id: params } })
+    }
+    return client.get('/documents/', { params })
+  },
   upload: (chatSessionId, formData) => {
     if (!formData.get('chat_session_id')) formData.append('chat_session_id', String(chatSessionId))
     return client.post('/documents/', formData, {
@@ -102,7 +107,11 @@ export const DocumentsAPI = {
 }
 
 export const StatisticsAPI = {
-  overview: () => client.get('/projects/statistics/'),
+  overview: (params = {}) => client.get('/projects/statistics/', { params }),
+  export: (params = {}, format = 'csv') => client.get('/projects/statistics-export/', {
+    params: { ...params, format },
+    responseType: format === 'csv' ? 'blob' : 'json',
+  }),
 }
 
 export default client

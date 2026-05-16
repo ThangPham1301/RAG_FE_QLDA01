@@ -15,9 +15,10 @@ const toFileInfo = (document) => {
 }
 
 const normalizeStatus = (indexStatus) => {
-    if (indexStatus === 'indexed') return 'INDEXED'
-    if (indexStatus === 'failed') return 'FAILED'
-    if (indexStatus === 'indexing') return 'PROCESSING'
+    const status = String(indexStatus || '').toLowerCase()
+    if (status === 'indexed' || status === 'ready') return 'INDEXED'
+    if (status === 'failed' || status === 'error') return 'FAILED'
+    if (status === 'indexing' || status === 'processing' || status === 'queued' || status === 'pending') return 'PROCESSING'
     return 'SYNCED'
 }
 
@@ -95,7 +96,7 @@ function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', o
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">DOCUMENT</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">PROJECT</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">UPLOADED FROM CHAT</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">SOURCE</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">LAST MODIFIED</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">STATUS</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">ACTIONS</th>
@@ -119,7 +120,7 @@ function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', o
                                     title={doc.title}
                                     fileInfo={toFileInfo(doc)}
                                     category={doc.project_name || '—'}
-                                    source={doc.chat_session_title || 'Không gắn chat'}
+                                    source={doc.chat_session_title || doc.source || 'System'}
                                     modified={formatDate(doc.updated_at)}
                                     status={normalizeStatus(doc.index_status)}
                                     actions={(
