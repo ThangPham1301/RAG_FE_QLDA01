@@ -1,13 +1,10 @@
-import { Database, FilePlus2, Files, FolderSync, ShieldAlert } from 'lucide-react'
+import { Activity, Database, Files, FolderSync, ShieldAlert, TrendingUp, UploadCloud, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import avatarProfile from '../assets/dashboard/avatar-profile.png'
 import { StatisticsAPI } from '../api/client'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
 import DashboardHeader from '../components/layout/DashboardHeader'
 import DashboardMetricsGrid from '../components/layout/DashboardMetricsGrid'
-import DashboardRecentActivityPanel from '../components/layout/DashboardRecentActivityPanel'
-import DashboardStatusDistributionPanel from '../components/layout/DashboardStatusDistributionPanel'
-import DashboardUploadVelocityPanel from '../components/layout/DashboardUploadVelocityPanel'
 import DashboardChartsPanel from '../components/layout/DashboardChartsPanel'
 import WorkspaceTopBar from '../components/layout/WorkspaceTopBar'
 
@@ -30,6 +27,7 @@ const getList = (source, ...keys) => {
 
 const normalizeOverview = (responseData) => {
     const source = responseData?.data || responseData?.summary || responseData || {}
+    const summary = responseData?.summary || {}
     const charts = responseData?.charts || {}
     return {
         totalDocuments: getNumber(source, 'total_documents', 'totalDocuments'),
@@ -39,43 +37,13 @@ const normalizeOverview = (responseData) => {
         activeChatSessions: getNumber(source, 'active_chat_sessions', 'activeChatSessions'),
         totalIndexedChunks: getNumber(source, 'total_indexed_chunks', 'totalIndexedChunks'),
         totalProjects: getNumber(source, 'total_projects', 'totalProjects'),
-        recentUploads: getList(source, 'recent_uploads', 'recentUploads', 'activities'),
-        chartData: getList(charts, 'line') || [],
+        // Summary counters from the aggregated summary block
+        totalUsers: getNumber(summary, 'users'),
+        totalVisits: getNumber(summary, 'visits'),
+        totalQueries: getNumber(summary, 'queries'),
+        // chart_rows include: period, users, visits, queries, uploads
+        chartData: getList(charts, 'line', 'bar') || [],
     }
-}
-
-const toDayLabel = (dateValue) => {
-    const date = new Date(dateValue)
-    if (Number.isNaN(date.getTime())) return 'N/A'
-    return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
-}
-
-const buildUploadBars = (uploads = []) => {
-    const byDay = new Map()
-    uploads.forEach((item) => {
-        const sourceDate = item.uploaded_at || item.created_at
-        const key = toDayLabel(sourceDate)
-        const isIndexed = ['indexed', 'ready'].includes(String(item.index_status || item.status || '').toLowerCase())
-        const current = byDay.get(key) || { label: key, uploads: 0, indexed: 0, timestamp: new Date(sourceDate).getTime() || 0 }
-        current.uploads += 1
-        if (isIndexed) current.indexed += 1
-        byDay.set(key, current)
-    })
-    return Array.from(byDay.values())
-        .sort((a, b) => a.timestamp - b.timestamp)
-        .slice(-7)
-        .map(({ label, uploads: totalUploads, indexed }) => ({ label, uploads: totalUploads, indexed }))
-}
-
-const formatTimeAgo = (value) => {
-    if (!value) return '—'
-    const uploadedAt = new Date(value).getTime()
-    if (Number.isNaN(uploadedAt)) return '—'
-    const diffMinutes = Math.max(1, Math.floor((Date.now() - uploadedAt) / 60000))
-    if (diffMinutes < 60) return `${diffMinutes} PHÚT TRƯỚC`
-    const diffHours = Math.floor(diffMinutes / 60)
-    if (diffHours < 24) return `${diffHours} GIỜ TRƯỚC`
-    return `${Math.floor(diffHours / 24)} NGÀY TRƯỚC`
 }
 
 function DashboardPage() {
@@ -157,29 +125,36 @@ function DashboardPage() {
                 badgeTone: 'emerald',
                 icon: <ShieldAlert size={18} />,
             },
+            {
+                title: 'NGƯỜI DÙNG',
+                value: String(data.totalUsers ?? 0),
+                badge: 'Trong kỳ',
+                badgeTone: 'blue',
+                icon: <Users size={18} />,
+            },
+            {
+                title: 'LƯỢT TRUY CẬP',
+                value: String(data.totalVisits ?? 0),
+                badge: 'Sessions',
+                badgeTone: 'emerald',
+                icon: <Activity size={18} />,
+            },
+            {
+                title: 'TRUY VẤN RAG',
+                value: String(data.totalQueries ?? 0),
+                badge: 'Câu hỏi',
+                badgeTone: 'blue',
+                icon: <TrendingUp size={18} />,
+            },
+            {
+                title: 'FILE UPLOAD',
+                value: String(data.totalDocuments ?? 0),
+                badge: `${data.indexedDocuments ?? 0} indexed`,
+                badgeTone: 'emerald',
+                icon: <UploadCloud size={18} />,
+            },
         ]
     }, [stats])
-
-    const activities = useMemo(() => {
-        const uploads = stats?.recentUploads || []
-        if (!uploads.length) {
-            return [{
-                title: 'No recent uploads',
-                description: 'Chưa có hoạt động upload tài liệu gần đây.',
-                timestamp: 'NOW',
-                icon: <FilePlus2 size={16} />,
-            }]
-        }
-        return uploads.map((item) => ({
-            id: item.id || item.document_id,
-            title: item.title || item.file_name || item.filename || 'Uploaded document',
-            description: `${item.project_name || item.project?.name || 'Unknown project'}${item.chat_session_title || item.chat_session?.title ? ` • ${item.chat_session_title || item.chat_session?.title}` : ''}`,
-            timestamp: formatTimeAgo(item.uploaded_at || item.created_at),
-            icon: <FilePlus2 size={16} />,
-        }))
-    }, [stats])
-
-    const uploadBars = useMemo(() => buildUploadBars(stats?.recentUploads || []), [stats])
 
     return (
         <main className="min-h-screen bg-white">
@@ -202,18 +177,8 @@ function DashboardPage() {
                                     {error}
                                 </div>
                             )}
-                            <DashboardMetricsGrid metrics={metrics} />
-                            <div className="grid gap-5 xl:grid-cols-[1.25fr_1fr]">
-                                <DashboardRecentActivityPanel activities={activities} isLoading={isLoading} />
-                                <DashboardStatusDistributionPanel
-                                    total={stats?.totalDocuments || 0}
-                                    indexed={stats?.indexedDocuments || 0}
-                                    failed={stats?.failedDocuments || 0}
-                                    indexing={stats?.indexingDocuments || 0}
-                                />
-                            </div>
-                            <DashboardUploadVelocityPanel bars={uploadBars} />
-                            <DashboardChartsPanel data={stats?.chartData || []} />
+                            <DashboardMetricsGrid metrics={metrics} isLoading={isLoading} />
+                            <DashboardChartsPanel data={stats?.chartData || []} isLoading={isLoading} />
                         </div>
                     </div>
                 </div>

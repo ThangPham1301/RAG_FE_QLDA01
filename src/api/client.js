@@ -104,6 +104,14 @@ export const DocumentsAPI = {
   index: (id) => client.post(`/documents/${id}/index/`),
   summary: (id, force = false) => client.post(`/documents/${id}/summary/`, { force }),
   getSummary: (id) => client.get(`/documents/${id}/summary/`),
+  // Get full extracted text for preview
+  getText: (id) => client.get(`/documents/${id}/text/`),
+  // URL for inline file preview via iframe (JWT added via query param workaround)
+  previewUrl: (id) => {
+    const token = localStorage.getItem('accessToken')
+    const base = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/$/, '')
+    return `${base}/documents/${id}/preview/?token=${token}`
+  },
 }
 
 export const StatisticsAPI = {
