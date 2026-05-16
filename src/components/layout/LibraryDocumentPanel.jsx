@@ -1,4 +1,4 @@
-import { Download, ExternalLink, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { Eye, ExternalLink, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import DocumentTableRow from '../ui/DocumentTableRow'
 
@@ -15,13 +15,21 @@ const toFileInfo = (document) => {
 }
 
 const normalizeStatus = (indexStatus) => {
-    if (indexStatus === 'indexed') return 'INDEXED'
-    if (indexStatus === 'failed') return 'FAILED'
-    if (indexStatus === 'indexing') return 'PROCESSING'
+    const status = String(indexStatus || '').toLowerCase()
+    if (status === 'indexed' || status === 'ready') return 'INDEXED'
+    if (status === 'failed' || status === 'error') return 'FAILED'
+    if (status === 'indexing' || status === 'processing' || status === 'queued' || status === 'pending') return 'PROCESSING'
     return 'SYNCED'
 }
 
-function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', onRefresh = null, onDeleteDocument = null }) {
+function LibraryDocumentPanel({
+    documents = [],
+    isLoading = false,
+    error = '',
+    onRefresh = null,
+    onDeleteDocument = null,
+    onPreviewDocument = null,
+}) {
     const [searchValue, setSearchValue] = useState('')
     const [projectFilter, setProjectFilter] = useState('all')
 
@@ -95,8 +103,8 @@ function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', o
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">DOCUMENT</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">PROJECT</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">UPLOADED FROM CHAT</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">LAST MODIFIED</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">SOURCE</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">NGÀY UPLOAD</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">STATUS</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600">ACTIONS</th>
                             </tr>
@@ -104,45 +112,66 @@ function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', o
                         <tbody>
                             {isLoading && (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-6 text-sm text-slate-500">Loading documents...</td>
+                                    <td colSpan={6} className="px-4 py-10 text-center">
+                                        <div className="inline-flex items-center gap-2 text-sm text-slate-500">
+                                            <RefreshCw size={15} className="animate-spin" />
+                                            Đang tải tài liệu...
+                                        </div>
+                                    </td>
                                 </tr>
                             )}
                             {!isLoading && filteredDocuments.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-6 text-sm text-slate-500">Chưa có tài liệu nào từ chat.</td>
+                                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">
+                                        Chưa có tài liệu nào trong thư viện.
+                                    </td>
                                 </tr>
                             )}
                             {!isLoading && filteredDocuments.map((doc) => (
                                 <DocumentTableRow
                                     key={doc.id}
-                                    icon={<Download size={16} />}
+                                    icon={<Eye size={16} />}
                                     title={doc.title}
                                     fileInfo={toFileInfo(doc)}
                                     category={doc.project_name || '—'}
-                                    source={doc.chat_session_title || 'Không gắn chat'}
+                                    source={doc.chat_session_title || doc.source || 'System'}
                                     modified={formatDate(doc.updated_at)}
                                     status={normalizeStatus(doc.index_status)}
                                     actions={(
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1">
+                                            {/* Preview button */}
+                                            {onPreviewDocument && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onPreviewDocument(doc)}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-100"
+                                                    title="Xem trước tài liệu"
+                                                >
+                                                    <Eye size={13} />
+                                                    Preview
+                                                </button>
+                                            )}
+                                            {/* Open in new tab */}
                                             {doc.file_url && (
                                                 <a
                                                     href={doc.file_url}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="rounded p-2 hover:bg-slate-100"
-                                                    title="Open file"
+                                                    title="Mở trong tab mới"
                                                 >
-                                                    <ExternalLink size={15} className="text-slate-500" />
+                                                    <ExternalLink size={14} className="text-slate-500" />
                                                 </a>
                                             )}
+                                            {/* Delete button */}
                                             {onDeleteDocument && (
                                                 <button
                                                     type="button"
                                                     onClick={() => onDeleteDocument(doc)}
                                                     className="rounded p-2 hover:bg-rose-50"
-                                                    title="Delete file"
+                                                    title="Xóa tài liệu"
                                                 >
-                                                    <Trash2 size={15} className="text-rose-500" />
+                                                    <Trash2 size={14} className="text-rose-500" />
                                                 </button>
                                             )}
                                         </div>
@@ -154,7 +183,12 @@ function LibraryDocumentPanel({ documents = [], isLoading = false, error = '', o
                 </div>
 
                 <div className="border-t border-slate-200 px-6 py-3">
-                    <p className="text-xs text-slate-600">Showing {filteredDocuments.length} document(s)</p>
+                    <p className="text-xs text-slate-600">
+                        Hiển thị <span className="font-semibold text-slate-800">{filteredDocuments.length}</span> tài liệu
+                        {documents.length !== filteredDocuments.length && (
+                            <span className="text-slate-400"> (trên tổng {documents.length})</span>
+                        )}
+                    </p>
                 </div>
             </article>
         </section>

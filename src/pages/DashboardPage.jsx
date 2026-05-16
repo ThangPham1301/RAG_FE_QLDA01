@@ -1,98 +1,159 @@
-import { Database, FilePlus2, Files, FolderSync, ShieldAlert } from 'lucide-react'
+import { Activity, Database, Files, FolderSync, ShieldAlert, TrendingUp, UploadCloud, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import avatarProfile from '../assets/dashboard/avatar-profile.png'
 import { StatisticsAPI } from '../api/client'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
-import DashboardActiveSessionCard from '../components/layout/DashboardActiveSessionCard'
 import DashboardHeader from '../components/layout/DashboardHeader'
-import DashboardInsightsPanel from '../components/layout/DashboardInsightsPanel'
 import DashboardMetricsGrid from '../components/layout/DashboardMetricsGrid'
-import DashboardRecentActivityPanel from '../components/layout/DashboardRecentActivityPanel'
-import DashboardUploadVelocityPanel from '../components/layout/DashboardUploadVelocityPanel'
+import DashboardChartsPanel from '../components/layout/DashboardChartsPanel'
 import WorkspaceTopBar from '../components/layout/WorkspaceTopBar'
 
-const formatTimeAgo = (value) => {
-    if (!value) return '—'
-    const uploadedAt = new Date(value).getTime()
-    if (Number.isNaN(uploadedAt)) return '—'
-    const diffMinutes = Math.max(1, Math.floor((Date.now() - uploadedAt) / 60000))
-    if (diffMinutes < 60) return `${diffMinutes} PHÚT TRƯỚC`
-    const diffHours = Math.floor(diffMinutes / 60)
-    if (diffHours < 24) return `${diffHours} GIỜ TRƯỚC`
-    return `${Math.floor(diffHours / 24)} NGÀY TRƯỚC`
+const getNumber = (source, ...keys) => {
+    for (const key of keys) {
+        const value = source?.[key]
+        if (typeof value === 'number' && Number.isFinite(value)) return value
+        if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value)
+    }
+    return 0
+}
+
+const getList = (source, ...keys) => {
+    for (const key of keys) {
+        const value = source?.[key]
+        if (Array.isArray(value)) return value
+    }
+    return []
+}
+
+const normalizeOverview = (responseData) => {
+    const source = responseData?.data || responseData?.summary || responseData || {}
+    const summary = responseData?.summary || {}
+    const charts = responseData?.charts || {}
+    return {
+        totalDocuments: getNumber(source, 'total_documents', 'totalDocuments'),
+        indexedDocuments: getNumber(source, 'indexed_documents', 'indexedDocuments'),
+        failedDocuments: getNumber(source, 'failed_documents', 'failedDocuments'),
+        indexingDocuments: getNumber(source, 'indexing_documents', 'indexingDocuments'),
+        activeChatSessions: getNumber(source, 'active_chat_sessions', 'activeChatSessions'),
+        totalIndexedChunks: getNumber(source, 'total_indexed_chunks', 'totalIndexedChunks'),
+        totalProjects: getNumber(source, 'total_projects', 'totalProjects'),
+        // Summary counters from the aggregated summary block
+        totalUsers: getNumber(summary, 'users'),
+        totalVisits: getNumber(summary, 'visits'),
+        totalQueries: getNumber(summary, 'queries'),
+        // chart_rows include: period, users, visits, queries, uploads
+        chartData: getList(charts, 'line', 'bar') || [],
+    }
 }
 
 function DashboardPage() {
     const [stats, setStats] = useState(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [isExporting, setIsExporting] = useState(false)
     const [error, setError] = useState('')
 
     useEffect(() => {
         let mounted = true
+        setIsLoading(true)
         StatisticsAPI.overview()
             .then((response) => {
                 if (!mounted) return
-                setStats(response.data)
+                setStats(normalizeOverview(response.data))
                 setError('')
             })
             .catch(() => {
                 if (!mounted) return
                 setError('Không thể tải dữ liệu thống kê.')
             })
+            .finally(() => {
+                if (mounted) setIsLoading(false)
+            })
         return () => {
             mounted = false
         }
     }, [])
+
+    const handleExportReport = async () => {
+        setIsExporting(true)
+        setError('')
+        try {
+            const response = await StatisticsAPI.export({}, 'csv')
+            const blob = response.data
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `statistics-${new Date().toISOString().slice(0, 10)}.csv`
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+        } catch {
+            setError('Không thể export báo cáo thống kê.')
+        } finally {
+            setIsExporting(false)
+        }
+    }
 
     const metrics = useMemo(() => {
         const data = stats || {}
         return [
             {
                 title: 'TOTAL DOCUMENTS',
-                value: String(data.total_documents ?? 0),
-                badge: `${data.total_projects ?? 0} project(s)`,
+                value: String(data.totalDocuments ?? 0),
+                badge: `${data.totalProjects ?? 0} project(s)`,
                 badgeTone: 'blue',
                 icon: <Files size={18} />,
             },
             {
                 title: 'INDEXED DOCUMENTS',
-                value: String(data.indexed_documents ?? 0),
-                badge: data.failed_documents ? `${data.failed_documents} failed` : 'Healthy',
-                badgeTone: data.failed_documents ? 'amber' : 'emerald',
+                value: String(data.indexedDocuments ?? 0),
+                badge: data.failedDocuments ? `${data.failedDocuments} failed` : 'Healthy',
+                badgeTone: data.failedDocuments ? 'amber' : 'emerald',
                 icon: <Database size={18} />,
             },
             {
                 title: 'ACTIVE CHATS',
-                value: String(data.active_chat_sessions ?? 0),
-                badge: `${data.indexing_documents ?? 0} indexing`,
+                value: String(data.activeChatSessions ?? 0),
+                badge: `${data.indexingDocuments ?? 0} indexing`,
                 badgeTone: 'blue',
                 icon: <FolderSync size={18} />,
             },
             {
                 title: 'INDEXED CHUNKS',
-                value: String(data.total_indexed_chunks ?? 0),
+                value: String(data.totalIndexedChunks ?? 0),
                 badge: 'RAG READY',
                 badgeTone: 'emerald',
                 icon: <ShieldAlert size={18} />,
             },
+            {
+                title: 'NGƯỜI DÙNG',
+                value: String(data.totalUsers ?? 0),
+                badge: 'Trong kỳ',
+                badgeTone: 'blue',
+                icon: <Users size={18} />,
+            },
+            {
+                title: 'LƯỢT TRUY CẬP',
+                value: String(data.totalVisits ?? 0),
+                badge: 'Sessions',
+                badgeTone: 'emerald',
+                icon: <Activity size={18} />,
+            },
+            {
+                title: 'TRUY VẤN RAG',
+                value: String(data.totalQueries ?? 0),
+                badge: 'Câu hỏi',
+                badgeTone: 'blue',
+                icon: <TrendingUp size={18} />,
+            },
+            {
+                title: 'FILE UPLOAD',
+                value: String(data.totalDocuments ?? 0),
+                badge: `${data.indexedDocuments ?? 0} indexed`,
+                badgeTone: 'emerald',
+                icon: <UploadCloud size={18} />,
+            },
         ]
-    }, [stats])
-
-    const activities = useMemo(() => {
-        const uploads = stats?.recent_uploads || []
-        if (!uploads.length) {
-            return [{
-                title: 'No recent uploads',
-                description: 'Chưa có hoạt động upload tài liệu gần đây.',
-                timestamp: 'NOW',
-                icon: <FilePlus2 size={16} />,
-            }]
-        }
-        return uploads.map((item) => ({
-            title: item.title,
-            description: `${item.project_name}${item.chat_session_title ? ` • ${item.chat_session_title}` : ''}`,
-            timestamp: formatTimeAgo(item.uploaded_at),
-            icon: <FilePlus2 size={16} />,
-        }))
     }, [stats])
 
     return (
@@ -110,21 +171,14 @@ function DashboardPage() {
 
                     <div className="flex-1 overflow-y-auto bg-[#f8f9ff] p-6 lg:p-8">
                         <div className="mx-auto max-w-7xl space-y-5">
-                            <DashboardHeader />
+                            <DashboardHeader onExport={handleExportReport} isExporting={isExporting} />
                             {error && (
                                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                                     {error}
                                 </div>
                             )}
-                            <DashboardMetricsGrid metrics={metrics} />
-
-                            <div className="grid gap-5 xl:grid-cols-[1.25fr_1fr]">
-                                <DashboardRecentActivityPanel activities={activities} />
-                                <DashboardUploadVelocityPanel />
-                            </div>
-
-                            <DashboardActiveSessionCard />
-                            <DashboardInsightsPanel />
+                            <DashboardMetricsGrid metrics={metrics} isLoading={isLoading} />
+                            <DashboardChartsPanel data={stats?.chartData || []} isLoading={isLoading} />
                         </div>
                     </div>
                 </div>

@@ -88,7 +88,12 @@ export const ChatAPI = {
 }
 
 export const DocumentsAPI = {
-  list: (chatSessionId) => client.get(`/documents/?chat_session_id=${chatSessionId}`),
+  list: (params = {}) => {
+    if (typeof params === 'string' || typeof params === 'number') {
+      return client.get('/documents/', { params: { chat_session_id: params } })
+    }
+    return client.get('/documents/', { params })
+  },
   upload: (chatSessionId, formData) => {
     if (!formData.get('chat_session_id')) formData.append('chat_session_id', String(chatSessionId))
     return client.post('/documents/', formData, {
@@ -99,10 +104,22 @@ export const DocumentsAPI = {
   index: (id) => client.post(`/documents/${id}/index/`),
   summary: (id, force = false) => client.post(`/documents/${id}/summary/`, { force }),
   getSummary: (id) => client.get(`/documents/${id}/summary/`),
+  // Get full extracted text for preview
+  getText: (id) => client.get(`/documents/${id}/text/`),
+  // URL for inline file preview via iframe (JWT added via query param workaround)
+  previewUrl: (id) => {
+    const token = localStorage.getItem('accessToken')
+    const base = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/$/, '')
+    return `${base}/documents/${id}/preview/?token=${token}`
+  },
 }
 
 export const StatisticsAPI = {
-  overview: () => client.get('/projects/statistics/'),
+  overview: (params = {}) => client.get('/projects/statistics/', { params }),
+  export: (params = {}, format = 'csv') => client.get('/projects/statistics-export/', {
+    params: { ...params, format },
+    responseType: format === 'csv' ? 'blob' : 'json',
+  }),
 }
 
 export default client
