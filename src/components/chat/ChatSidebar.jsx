@@ -164,6 +164,10 @@ function ChatSidebar() {
     setExpandedProjectId((current) => (current === projectId ? null : projectId))
   }
 
+  const handlePrimaryNavigation = () => {
+    setSelectedChat(null)
+  }
+
   const handleDeleteProject = async (project, event) => {
     event.stopPropagation()
 
@@ -449,6 +453,7 @@ function ChatSidebar() {
               key={label}
               to={to}
               end={to === '/dashboard'}
+              onClick={handlePrimaryNavigation}
               className={({ isActive }) =>
                 `flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition-all duration-200 ${isActive
                   ? 'bg-white/10 font-semibold text-white ring-1 ring-white/10 shadow-[0_10px_24px_rgba(15,23,42,0.18)]'
@@ -518,6 +523,7 @@ function ChatSidebar() {
                 key={label}
                 to={to}
                 end={to === '/dashboard'}
+                onClick={handlePrimaryNavigation}
                 className={({ isActive }) =>
                   `flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition-all duration-200 ${isActive
                     ? 'bg-white/10 font-semibold text-white ring-1 ring-white/10 shadow-[0_10px_24px_rgba(15,23,42,0.18)]'

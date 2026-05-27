@@ -14,7 +14,7 @@ const STATUS = {
 }
 
 const fmtDate = (v) => {
-    if (!v) return 'â€”'
+    if (!v) return '-'
     const d = new Date(v)
     return isNaN(d.getTime()) ? v : d.toLocaleDateString('vi-VN', {
         day: '2-digit', month: '2-digit', year: 'numeric',
@@ -34,7 +34,7 @@ const splitPages = (text = '', numPages = 2) => {
     ).filter(Boolean)
 }
 
-/* â”€â”€â”€ Text "page" card â”€â”€â”€ */
+/* Text page card */
 function PageCard({ text, page, total }) {
     return (
         <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -49,13 +49,13 @@ function PageCard({ text, page, total }) {
                 </p>
             </div>
             <div className="border-t border-slate-100 px-4 py-1.5 text-center text-[10px] text-slate-300">
-                â€” {page} â€”
+                - {page} -
             </div>
         </div>
     )
 }
 
-/* â”€â”€â”€ Text viewer (fetches full extracted_text via /text API) â”€â”€â”€ */
+/* Text viewer */
 function TextViewer({ docId, fallbackText, fileType }) {
     const [text, setText]       = useState(fallbackText || '')
     const [status, setStatus]   = useState(fallbackText ? 'done' : 'loading')
@@ -71,7 +71,7 @@ function TextViewer({ docId, fallbackText, fileType }) {
                 setStatus('done')
             })
             .catch((err) => {
-                setError(err?.response?.data?.detail || err.message || 'KhÃ´ng thá»ƒ táº£i ná»™i dung.')
+                setError(err?.response?.data?.detail || err.message || 'Không thể tải nội dung.')
                 setStatus('error')
             })
     }, [docId, fallbackText])
@@ -80,7 +80,7 @@ function TextViewer({ docId, fallbackText, fileType }) {
         return (
             <div className="flex h-full items-center justify-center gap-3 text-slate-500">
                 <RefreshCw size={20} className="animate-spin text-indigo-500" />
-                <span className="text-sm font-medium">Äang táº£i ná»™i dung...</span>
+                <span className="text-sm font-medium">Đang tải nội dung...</span>
             </div>
         )
     }
@@ -89,7 +89,7 @@ function TextViewer({ docId, fallbackText, fileType }) {
         return (
             <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-rose-200 bg-rose-50 p-8 text-center">
                 <AlertCircle size={32} className="text-rose-400" />
-                <p className="text-sm font-semibold text-rose-600">KhÃ´ng thá»ƒ táº£i ná»™i dung</p>
+                <p className="text-sm font-semibold text-rose-600">Không thể tải nội dung</p>
                 <p className="text-xs text-rose-400">{error}</p>
             </div>
         )
@@ -101,11 +101,11 @@ function TextViewer({ docId, fallbackText, fileType }) {
         return (
             <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center">
                 <FileText size={36} className="text-slate-300" />
-                <p className="text-sm font-semibold text-slate-500">ChÆ°a cÃ³ ná»™i dung trÃ­ch xuáº¥t</p>
+                <p className="text-sm font-semibold text-slate-500">Chưa có nội dung trích xuất</p>
                 <p className="text-xs text-slate-400">
                     {fileType === 'pdf'
-                        ? 'Ná»™i dung PDF chÆ°a Ä‘Æ°á»£c xá»­ lÃ½ (OCR).'
-                        : 'TÃ i liá»‡u Ä‘ang indexing hoáº·c ná»™i dung trá»‘ng.'}
+                        ? 'Nội dung PDF chưa được xử lý OCR.'
+                        : 'Tài liệu đang indexing hoặc nội dung trống.'}
                 </p>
             </div>
         )
@@ -119,13 +119,13 @@ function TextViewer({ docId, fallbackText, fileType }) {
                 ))}
             </div>
             <p className="text-center text-[11px] text-slate-400">
-                Xem trÆ°á»›c 2 trang Ä‘áº§u â€¢ {text.length.toLocaleString()} kÃ½ tá»± Ä‘Ã£ trÃ­ch xuáº¥t
+                Xem trước 2 trang đầu - {text.length.toLocaleString()} ký tự đã trích xuất
             </p>
         </div>
     )
 }
 
-/* â”€â”€â”€ PDF viewer via iframe with JWT token in URL â”€â”€â”€ */
+/* PDF viewer via iframe with JWT token in URL */
 function PdfViewer({ docId }) {
     const src = DocumentsAPI.previewUrl(docId)
     return (
@@ -296,9 +296,7 @@ function OcrLayoutPanel({ layout, isLoading, error }) {
     )
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   Main Modal
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* Main modal */
 export default function DocumentPreviewModal({ document: doc, onClose }) {
     const overlayRef = useRef(null)
     const isPdf  = doc.file_type === 'pdf'
@@ -402,21 +400,21 @@ export default function DocumentPreviewModal({ document: doc, onClose }) {
             `}</style>
 
             <div
-                className="flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
-                style={{ maxHeight: '92vh', animation: 'dpSlideUp .2s ease' }}
+                className="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+                style={{ animation: 'dpSlideUp .2s ease' }}
             >
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white px-6 py-4">
                     <div className="flex min-w-0 items-start gap-3">
-                        <span className="mt-0.5 shrink-0 text-2xl">{FILE_ICON[doc.file_type] || 'ðŸ“Ž'}</span>
+                        <span className="mt-0.5 shrink-0 text-2xl">{FILE_ICON[doc.file_type] || 'FILE'}</span>
                         <div className="min-w-0">
                             <h2 className="truncate font-['Manrope'] text-lg font-extrabold text-slate-900" title={doc.title}>
                                 {doc.title || 'Untitled Document'}
                             </h2>
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                 <span className="font-semibold text-indigo-600">{doc.project_name}</span>
-                                {doc.chat_session_title && <><span>â€¢</span><span>{doc.chat_session_title}</span></>}
-                                <span>â€¢</span>
+                                {doc.chat_session_title && <><span>-</span><span>{doc.chat_session_title}</span></>}
+                                <span>-</span>
                                 <span>{fmtDate(doc.uploaded_at)}</span>
                             </div>
                         </div>
@@ -431,12 +429,12 @@ export default function DocumentPreviewModal({ document: doc, onClose }) {
                                 download={doc.title}
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-400"
                             >
-                                <Download size={13} /> Táº£i vá»
+                                <Download size={13} /> Tải về
                             </a>
                         )}
                         <button type="button" onClick={onClose}
                             className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                            aria-label="ÄÃ³ng">
+                            aria-label="Đóng">
                             <X size={18} />
                         </button>
                     </div>
@@ -444,9 +442,9 @@ export default function DocumentPreviewModal({ document: doc, onClose }) {
 
                 {/* Meta strip */}
                 <div className="flex flex-wrap gap-5 border-b border-slate-100 bg-slate-50/80 px-6 py-2 text-xs text-slate-500">
-                    <span><span className="font-semibold text-slate-700">Loáº¡i: </span>{(doc.file_type || 'unknown').toUpperCase()}</span>
+                    <span><span className="font-semibold text-slate-700">Loại: </span>{(doc.file_type || 'unknown').toUpperCase()}</span>
                     <span><span className="font-semibold text-slate-700">Chunks: </span>{doc.indexed_chunks ?? 0}</span>
-                    <span><span className="font-semibold text-slate-700">Tráº¡ng thÃ¡i: </span>{statusInfo.label}</span>
+                    <span><span className="font-semibold text-slate-700">Trạng thái: </span>{statusInfo.label}</span>
                 </div>
 
                 {/* Tabs */}
@@ -466,7 +464,7 @@ export default function DocumentPreviewModal({ document: doc, onClose }) {
                 )}
 
                 {/* Preview body */}
-                <div className="flex-1 overflow-hidden p-5" style={{ minHeight: 0, height: 'calc(92vh - 185px)' }}>
+                <div className="min-h-0 flex-1 overflow-hidden p-5">
                     {activeTab === 'pdf' ? (
                         <PdfViewer docId={doc.id} />
                     ) : activeTab === 'fields' ? (
