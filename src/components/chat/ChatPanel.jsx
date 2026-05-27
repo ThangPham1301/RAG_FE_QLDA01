@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Send } from 'lucide-react'
+import { AlertCircle, ChevronDown, FileText, Send } from 'lucide-react'
 import { ChatAPI } from '../../api/client'
 import { useChat } from '../../context/useChat'
 import ProjectEmptyChatView from './ProjectEmptyChatView'
@@ -11,8 +11,29 @@ function ChatPanel() {
   const [loading, setLoading] = useState(false)
   const [sendError, setSendError] = useState('')
   const [creatingSession, setCreatingSession] = useState(false)
+  // Bước 5: state chọn file
+  const [selectedDocumentId, setSelectedDocumentId] = useState(null)
+  const [docSelectorOpen, setDocSelectorOpen] = useState(false)
   const containerRef = useRef(null)
   const inputRef = useRef(null)
+  const docSelectorRef = useRef(null)
+
+  // Đóng dropdown khi click ngoài
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (docSelectorRef.current && !docSelectorRef.current.contains(e.target)) {
+        setDocSelectorOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Reset file selection khi đổi chat
+  useEffect(() => {
+    setSelectedDocumentId(null)
+    setDocSelectorOpen(false)
+  }, [selectedChat?.id])
 
   useEffect(() => {
     const sessionId = selectedChat?.id
@@ -63,9 +84,7 @@ function ChatPanel() {
     if (!selectedChat) {
       tempId = `temp-${Date.now()}`
       const tempChat = { id: tempId, title: question, isTemporary: true, project_id: selectedProject.id }
-      // set selected chat immediately
       setSelectedChat(tempChat)
-      // optimistic add to project list so sidebar shows it
       setProjects((prev) => prev.map((p) => p.id === selectedProject.id ? { ...p, chats: [tempChat, ...(p.chats || [])] } : p))
       sessionToUse = tempChat
     }
@@ -73,17 +92,18 @@ function ChatPanel() {
     const userMessage = { id: `u-${Date.now()}`, role: 'user', content: question }
     setMessages((list) => [...list, userMessage])
     setInput('')
-    setSendError('')
     setLoading(true)
     setCreatingSession(false)
 
+    // ID tạm cho streaming message
+    const streamingId = `streaming-${Date.now()}`
+
     try {
-      // If session was temporary, create real session first
+      // Tạo session thật nếu đang dùng temp
       if (tempId) {
         setCreatingSession(true)
         const createRes = await ChatAPI.createSession(selectedProject.id)
         const realChat = createRes.data
-        // replace temp with real in selectedChat and projects
         setSelectedChat(realChat)
         setProjects((prev) => prev.map((p) => {
           if (p.id !== selectedProject.id) return p
@@ -94,23 +114,81 @@ function ChatPanel() {
         setCreatingSession(false)
       }
 
-      const response = await ChatAPI.sendMessage(sessionToUse.id, question)
-      const assistant = response.data.message || response.data.assistant_message || response.data.assistant || { role: 'assistant', content: response.data.answer || response.data.response || '' }
-      setMessages((list) => [...list.filter((item) => item.id !== userMessage.id), userMessage, assistant])
+      // Thêm placeholder streaming message
+      setMessages((list) => [...list, {
+        id: streamingId,
+        role: 'assistant',
+        content: '',
+        isStreaming: true,
+      }])
+
+      // Gọi stream API
+      const res = await ChatAPI.sendMessageStream(sessionToUse.id, question, selectedDocumentId)
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() // giữ phần chưa hoàn chỉnh
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const raw = line.slice(6).trim()
+          if (!raw) continue
+          try {
+            const event = JSON.parse(raw)
+            if (event.type === 'token') {
+              // Append token vào streaming message
+              setMessages((list) => list.map((m) =>
+                m.id === streamingId
+                  ? { ...m, content: m.content + event.content }
+                  : m
+              ))
+            } else if (event.type === 'done') {
+              // Stream xong → finalize message (xoá flag isStreaming)
+              setMessages((list) => list.map((m) =>
+                m.id === streamingId
+                  ? { ...m, id: event.message_id, isStreaming: false }
+                  : m
+              ))
+            } else if (event.type === 'error') {
+              setSendError(event.content || 'Có lỗi xảy ra.')
+              setMessages((list) => list.filter((m) => m.id !== streamingId))
+            }
+          } catch {
+            // ignore JSON parse errors
+          }
+        }
+      }
     } catch (error) {
-      console.error('[Chat] Error sending message or creating chat:', error)
-      // rollback if temp
+      console.error('[Chat] Stream error:', error)
+      // Rollback temp session nếu có
       if (tempId) {
         setProjects((prev) => prev.map((p) => p.id === selectedProject.id ? { ...p, chats: (p.chats || []).filter((c) => c.id !== tempId) } : p))
         setSelectedChat(null)
       }
-      const errorMessage = error?.response?.data?.error || error?.response?.data?.detail || 'Không thể gửi câu hỏi. Vui lòng thử lại.'
-      setSendError(String(errorMessage))
+      // Xoá placeholder streaming
+      setMessages((list) => list.filter((m) => m.id !== streamingId))
+      const errorMessage = error?.message || 'Không thể gửi câu hỏi. Vui lòng thử lại.'
+      setSendError(errorMessage)
     } finally {
       setLoading(false)
       setCreatingSession(false)
     }
   }
+
+  // Danh sách documents trong chat hiện tại
+  const chatDocuments = selectedChat?.documents || []
+
+  // Tên file đang chọn để hiển thị trên nút
+  const selectedDocLabel = selectedDocumentId
+    ? (chatDocuments.find((d) => d.id === selectedDocumentId)?.title || `File #${selectedDocumentId}`)
+    : 'Tất cả file'
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col bg-transparent">
@@ -141,7 +219,12 @@ function ChatPanel() {
                   : 'max-w-107.5 rounded-[1.4rem] border border-slate-200 bg-white text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.06)]'
                   } px-6 py-4`}
               >
-                <div className="text-sm leading-7">{message.content}</div>
+                <div className="text-sm leading-7 whitespace-pre-wrap">
+                    {message.content}
+                    {message.isStreaming && (
+                      <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-current align-middle opacity-80" />
+                    )}
+                  </div>
                 {message.sources && message.sources.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
                     <span className="font-semibold uppercase tracking-[0.18em] text-slate-400">Sources</span>
@@ -180,6 +263,56 @@ function ChatPanel() {
             <span>{sendError}</span>
           </div>
         )}
+
+        {/* Document selector — chỉ hiện khi có file trong chat */}
+        {selectedChat && chatDocuments.length > 0 && (
+          <div className="mx-auto mb-2 flex max-w-190 items-center gap-2">
+            <span className="text-[11px] font-medium text-slate-400">Hỏi về:</span>
+            <div className="relative" ref={docSelectorRef}>
+              <button
+                type="button"
+                onClick={() => setDocSelectorOpen((o) => !o)}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                <FileText size={12} className="text-slate-400" />
+                <span className="max-w-[160px] truncate">{selectedDocLabel}</span>
+                <ChevronDown size={12} className={`text-slate-400 transition-transform ${docSelectorOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {docSelectorOpen && (
+                <div className="absolute bottom-full left-0 z-20 mb-1 min-w-[200px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]">
+                  {/* Option: Tất cả file */}
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedDocumentId(null); setDocSelectorOpen(false) }}
+                    className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition hover:bg-slate-50 ${!selectedDocumentId ? 'font-semibold text-blue-700' : 'text-slate-700'}`}
+                  >
+                    <FileText size={14} className="shrink-0 text-slate-400" />
+                    <span>Tất cả file</span>
+                  </button>
+                  {/* Options: từng file */}
+                  {chatDocuments.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onClick={() => { setSelectedDocumentId(doc.id); setDocSelectorOpen(false) }}
+                      className={`flex w-full items-center gap-2 border-t border-slate-100 px-4 py-2.5 text-left text-sm transition hover:bg-slate-50 ${selectedDocumentId === doc.id ? 'font-semibold text-blue-700' : 'text-slate-700'}`}
+                    >
+                      <FileText size={14} className="shrink-0 text-slate-400" />
+                      <span className="truncate">{doc.title}</span>
+                      {doc.index_status && (
+                        <span className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${doc.index_status === 'indexed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                          {doc.index_status}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="mx-auto flex max-w-190 items-center gap-2 rounded-3xl border border-slate-200 bg-white/90 p-2.5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl">
           <input
             ref={inputRef}
@@ -192,7 +325,11 @@ function ChatPanel() {
               }
             }}
             type="text"
-            placeholder="Ask the archive a specific question..."
+            placeholder={
+              selectedDocumentId
+                ? `Hỏi về "${selectedDocLabel}"...`
+                : 'Ask the archive a specific question...'
+            }
             disabled={loading || creatingSession || !selectedProject}
             className="flex-1 bg-transparent px-3 text-sm text-slate-700 outline-none placeholder:text-slate-400"
           />
@@ -206,3 +343,4 @@ function ChatPanel() {
 }
 
 export default ChatPanel
+

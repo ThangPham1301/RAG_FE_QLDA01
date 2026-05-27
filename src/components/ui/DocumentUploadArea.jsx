@@ -6,8 +6,8 @@ function DocumentUploadArea() {
             <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-lg bg-white">
                 <Upload size={20} className="text-blue-800" />
             </div>
-            <h3 className="mt-3 text-lg font-bold text-slate-900">Ingest New Research</h3>
-            <p className="mt-1 text-sm text-slate-600">Drag and drop PDFs, DOCX, or Excel files here</p>
+            <h3 className="mt-3 text-lg font-bold text-slate-900">Upload tài liệu mới</h3>
+            <p className="mt-1 text-sm text-slate-600">Hỗ trợ PDF, DOCX, TXT, JPG, JPEG hoặc PNG</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <button
                     type="button"

@@ -77,15 +77,39 @@ export const ProjectsAPI = {
 export const ChatAPI = {
   listSessions: (projectId) => client.get(`/chat/sessions/?project_id=${projectId}`),
   createSession: (projectId, title = null) => client.post('/chat/sessions/', { project_id: projectId, title: title || 'New Chat' }),
-  sendMessage: (sessionId, content) => client.post('/chat/send/', {
+  sendMessage: (sessionId, content, documentId = null) => client.post('/chat/send/', {
     chat_session_id: sessionId,
     content,
+    ...(documentId ? { document_id: documentId } : {}),
   }),
+  // Streaming version — dùng native fetch để đọc SSE response
+  sendMessageStream: async (sessionId, content, documentId = null) => {
+    const token = localStorage.getItem('accessToken') || ''
+    const baseURL = import.meta.env.VITE_API_URL || '/api'
+    const res = await fetch(`${baseURL}/chat/stream/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        chat_session_id: sessionId,
+        content,
+        ...(documentId ? { document_id: documentId } : {}),
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(err.error || `HTTP ${res.status}`)
+    }
+    return res  // caller đọc res.body (ReadableStream)
+  },
   getSession: (id) => client.get(`/chat/sessions/${id}/`),
   updateSession: (id, payload) => client.patch(`/chat/sessions/${id}/`, payload),
   delete: (id) => client.delete(`/chat/sessions/${id}/`),
   getMessages: (sessionId) => client.get(`/chat/sessions/${sessionId}/messages/`),
 }
+
 
 export const DocumentsAPI = {
   list: (params = {}) => {
@@ -101,7 +125,11 @@ export const DocumentsAPI = {
     })
   },
   delete: (id) => client.delete(`/documents/${id}/`),
-  index: (id) => client.post(`/documents/${id}/index/`),
+  index: (id) => client.post(`/documents/${id}/reindex/`),
+  reindex: (id) => client.post(`/documents/${id}/reindex/`),
+  getFields: (id) => client.get(`/documents/${id}/fields/`),
+  getOcrLayout: (id) => client.get(`/documents/${id}/ocr-layout/`),
+  reextractFields: (id) => client.post(`/documents/${id}/reextract-fields/`),
   summary: (id, force = false) => client.post(`/documents/${id}/summary/`, { force }),
   getSummary: (id) => client.get(`/documents/${id}/summary/`),
   // Get full extracted text for preview
