@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-  BarChart3,
   BookOpen,
-  ChartNoAxesCombined,
   ChevronDown,
   FileText,
   Folder,
@@ -15,17 +13,16 @@ import {
   Trash2,
   Users,
 } from 'lucide-react'
-import { ChatAPI, DocumentsAPI, ProjectsAPI } from '../../api/client'
+import { ChatAPI, DocumentsAPI, ProjectsAPI, TeamsAPI } from '../../api/client'
 import { useChat } from '../../context/useChat'
 import CreateProjectModal from './CreateProjectModal'
+import TeamDocumentPickerModal from './TeamDocumentPickerModal'
 
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
   { label: 'Library', icon: BookOpen, to: '/library' },
   { label: 'Chat', icon: MessageSquare, to: '/chat' },
-  { label: 'Summarize', icon: ChartNoAxesCombined },
-  { label: 'Statistics', icon: BarChart3, to: '/statistics' },
-  { label: 'Team', icon: Users },
+  { label: 'Team', icon: Users, to: '/team' },
   { label: 'Settings', icon: Settings, to: '/account' },
 ]
 
@@ -46,6 +43,7 @@ function ChatSidebar() {
   const [documents, setDocuments] = useState([])
   const [expandedProjectId, setExpandedProjectId] = useState(null)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
+  const [isTeamPickerOpen, setIsTeamPickerOpen] = useState(false)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -168,6 +166,15 @@ function ChatSidebar() {
     setSelectedChat(null)
   }
 
+  const renderNavIcon = (Icon, isActive) => (
+    <span
+      className={`grid h-8 w-8 place-items-center rounded-xl ${isActive ? 'bg-linear-to-br from-cyan-400 to-blue-600 text-white' : 'bg-white/10 text-slate-300'}`}
+      aria-hidden="true"
+    >
+      <Icon size={16} strokeWidth={2.2} />
+    </span>
+  )
+
   const handleDeleteProject = async (project, event) => {
     event.stopPropagation()
 
@@ -224,11 +231,20 @@ function ChatSidebar() {
   const handleDeleteDocument = async (document, event) => {
     event.stopPropagation()
 
-    const confirmed = window.confirm(`Xóa file "${document.title || 'Document'}"? Hành động này không thể hoàn tác.`)
+    const isTeamAttachment = document.access_source === 'team_attachment'
+    const confirmed = window.confirm(
+      isTeamAttachment
+        ? `Remove "${document.title || 'Document'}" from this chat? The team document will remain available.`
+        : `Xóa file "${document.title || 'Document'}"? Hành động này không thể hoàn tác.`
+    )
     if (!confirmed) return
 
     try {
-      await DocumentsAPI.delete(document.id)
+      if (isTeamAttachment) {
+        await TeamsAPI.detachDocumentFromChat(selectedChat.id, document.id)
+      } else {
+        await DocumentsAPI.delete(document.id)
+      }
 
       setDocuments((list) => list.filter((item) => item.id !== document.id))
 
@@ -274,6 +290,19 @@ function ChatSidebar() {
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const refreshSelectedChatDocuments = async () => {
+    if (!selectedChat?.id) return
+    try {
+      const refreshed = await ChatAPI.getSession(selectedChat.id)
+      const detail = refreshed.data
+      setSelectedChat(detail)
+      setDocuments(detail.documents || [])
+      setSessions((list) => list.map((item) => (item.id === detail.id ? detail : item)))
+    } catch (error) {
+      console.error(error)
     }
   }
 
@@ -379,7 +408,9 @@ function ChatSidebar() {
                                 </span>
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate font-medium">{document.title}</div>
-                                  <div className="text-[10px] text-slate-500">{document.index_status || 'pending'}</div>
+                                  <div className="text-[10px] text-slate-500">
+                                    {document.access_source === 'team_attachment' ? 'team attachment' : (document.index_status || 'pending')}
+                                  </div>
                                 </div>
                                 <button
                                   type="button"
@@ -412,6 +443,15 @@ function ChatSidebar() {
                             >
                               <Upload size={14} />
                               <span className="font-medium">Upload file</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsTeamPickerOpen(true)}
+                              disabled={!selectedChat || uploading}
+                              className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <Users size={14} />
+                              <span className="font-medium">Add from Team</span>
                             </button>
                             {(uploading || uploadStatus.phase === 'success' || uploadStatus.phase === 'error') && (
                               <div className={`mt-2 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${uploadStatus.phase === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : uploadStatus.phase === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'}`}>
@@ -464,12 +504,7 @@ function ChatSidebar() {
             >
               {({ isActive }) => (
                 <>
-                  <span
-                    className={`grid h-8 w-8 place-items-center rounded-xl ${isActive ? 'bg-linear-to-br from-cyan-400 to-blue-600 text-white' : 'bg-white/10 text-slate-300'}`}
-                    aria-hidden="true"
-                  >
-                    <Icon size={16} strokeWidth={2.2} />
-                  </span>
+                  {renderNavIcon(Icon, isActive)}
                   <span className={`flex-1 ${isActive ? 'font-semibold' : 'font-medium'}`}>{label}</span>
                 </>
               )}
@@ -534,12 +569,7 @@ function ChatSidebar() {
               >
                 {({ isActive }) => (
                   <>
-                    <span
-                      className={`grid h-8 w-8 place-items-center rounded-xl ${isActive ? 'bg-linear-to-br from-cyan-400 to-blue-600 text-white' : 'bg-white/10 text-slate-300'}`}
-                      aria-hidden="true"
-                    >
-                      <Icon size={16} strokeWidth={2.2} />
-                    </span>
+                    {renderNavIcon(Icon, isActive)}
                     <span className={`flex-1 ${isActive ? 'font-semibold' : 'font-medium'}`}>{label}</span>
                   </>
                 )}
@@ -554,6 +584,12 @@ function ChatSidebar() {
         onClose={() => setIsCreateProjectOpen(false)}
         onCreate={onCreateProject}
         loading={creatingProject}
+      />
+      <TeamDocumentPickerModal
+        open={isTeamPickerOpen}
+        chatSessionId={selectedChat?.id}
+        onClose={() => setIsTeamPickerOpen(false)}
+        onAttached={refreshSelectedChatDocuments}
       />
     </aside>
   )

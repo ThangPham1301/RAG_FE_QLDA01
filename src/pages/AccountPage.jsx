@@ -20,7 +20,6 @@ function AccountPage() {
 
                 <div className="flex min-h-screen flex-1 flex-col">
                     <WorkspaceTopBar
-                        placeholder="Search archive..."
                         profileName="Dr. Elias Vance"
                         profileRole="Senior Research Fellow"
                         avatarSrc={topbarAvatar}

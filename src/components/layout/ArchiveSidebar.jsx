@@ -2,12 +2,10 @@ import { createElement } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAppSettings } from '../../context/AppSettingsContext'
 import {
-    BarChart3,
     BookOpen,
-    ChartNoAxesCombined,
     LayoutDashboard,
     MessageSquare,
-    UserRound,
+    Settings,
     Users,
 } from 'lucide-react'
 
@@ -15,10 +13,8 @@ const NAV_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
     { id: 'library', label: 'Library', icon: BookOpen, to: '/library' },
     { id: 'chat', label: 'Chat', icon: MessageSquare, to: '/chat' },
-    { id: 'summarize', label: 'Summarize', icon: ChartNoAxesCombined },
-    { id: 'statistics', label: 'Statistics', icon: BarChart3, to: '/statistics' },
-    { id: 'team', label: 'Team', icon: Users },
-    { id: 'profile', label: 'Profile', icon: UserRound, to: '/account' },
+    { id: 'team', label: 'Team', icon: Users, to: '/team' },
+    { id: 'settings', label: 'Settings', icon: Settings, to: '/account' },
 ]
 
 function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' }) {

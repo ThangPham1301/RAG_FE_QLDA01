@@ -1,4 +1,4 @@
-import { Eye, ExternalLink, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { Eye, ExternalLink, RefreshCw, Search, Share2, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import DocumentTableRow from '../ui/DocumentTableRow'
 
@@ -23,12 +23,15 @@ const normalizeStatus = (indexStatus) => {
 }
 
 function LibraryDocumentPanel({
+    title = 'Document Library',
+    description = 'Tài liệu được upload từ màn hình Chat, phân tách theo project và chat session.',
     documents = [],
     isLoading = false,
     error = '',
     onRefresh = null,
     onDeleteDocument = null,
     onPreviewDocument = null,
+    onShareDocument = null,
 }) {
     const [searchValue, setSearchValue] = useState('')
     const [projectFilter, setProjectFilter] = useState('all')
@@ -57,8 +60,8 @@ function LibraryDocumentPanel({
                 <div className="border-b border-slate-200 px-6 py-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h2 className="font-['Manrope'] text-xl font-extrabold text-slate-900">Document Library</h2>
-                            <p className="mt-1 text-sm text-slate-600">Tài liệu được upload từ màn hình Chat, phân tách theo project và chat session.</p>
+                            <h2 className="font-['Manrope'] text-xl font-extrabold text-slate-900">{title}</h2>
+                            <p className="mt-1 text-sm text-slate-600">{description}</p>
                         </div>
                         <button
                             type="button"
@@ -162,6 +165,16 @@ function LibraryDocumentPanel({
                                                 >
                                                     <ExternalLink size={14} className="text-slate-500" />
                                                 </a>
+                                            )}
+                                            {onShareDocument && doc.can_share && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onShareDocument(doc)}
+                                                    className="rounded p-2 hover:bg-blue-50"
+                                                    title="Share with user"
+                                                >
+                                                    <Share2 size={14} className="text-blue-600" />
+                                                </button>
                                             )}
                                             {/* Delete button */}
                                             {onDeleteDocument && (

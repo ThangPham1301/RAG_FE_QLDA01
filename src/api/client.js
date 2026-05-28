@@ -130,6 +130,7 @@ export const DocumentsAPI = {
   getFields: (id) => client.get(`/documents/${id}/fields/`),
   getOcrLayout: (id) => client.get(`/documents/${id}/ocr-layout/`),
   reextractFields: (id) => client.post(`/documents/${id}/reextract-fields/`),
+  share: (id, email) => client.post(`/documents/${id}/share/`, { email }),
   summary: (id, force = false) => client.post(`/documents/${id}/summary/`, { force }),
   getSummary: (id) => client.get(`/documents/${id}/summary/`),
   // Get full extracted text for preview
@@ -142,11 +143,32 @@ export const DocumentsAPI = {
   },
 }
 
+export const TeamsAPI = {
+  list: () => client.get('/teams/'),
+  create: (name) => client.post('/teams/', { name }),
+  invite: (teamId, emails) => client.post(`/teams/${teamId}/invite/`, { emails }),
+  documents: (teamId) => client.get(`/teams/${teamId}/documents/`),
+  uploadDocuments: (teamId, formData) => client.post(`/teams/${teamId}/documents/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  invitations: () => client.get('/team-invitations/'),
+  acceptInvitation: (id) => client.post(`/team-invitations/${id}/accept/`),
+  rejectInvitation: (id) => client.post(`/team-invitations/${id}/reject/`),
+  attachDocumentsToChat: (chatSessionId, documentIds) => client.post('/chat/attach-documents/', {
+    chat_session_id: chatSessionId,
+    document_ids: documentIds,
+  }),
+  detachDocumentFromChat: (chatSessionId, documentId) => client.delete('/chat/attach-documents/', {
+    data: { chat_session_id: chatSessionId, document_id: documentId },
+  }),
+  sharedLibrary: () => client.get('/library/shared/'),
+}
+
 export const StatisticsAPI = {
   overview: (params = {}) => client.get('/projects/statistics/', { params }),
-  export: (params = {}, format = 'csv') => client.get('/projects/statistics-export/', {
+  export: (params = {}, format = 'csv') => client.get('/dashboard/export/', {
     params: { ...params, format },
-    responseType: format === 'csv' ? 'blob' : 'json',
+    responseType: format === 'json' ? 'json' : 'blob',
   }),
 }
 
