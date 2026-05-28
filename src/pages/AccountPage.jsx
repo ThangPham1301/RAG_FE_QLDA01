@@ -1,9 +1,6 @@
 import { useState } from 'react'
 import topbarAvatar from '../assets/account/topbar-avatar.png'
-import AccountActivityLogPanel from '../components/layout/AccountActivityLogPanel'
-import AccountFooterActions from '../components/layout/AccountFooterActions'
 import AccountHeader from '../components/layout/AccountHeader'
-import AccountPreferencesGrid from '../components/layout/AccountPreferencesGrid'
 import AccountProfileCard from '../components/layout/AccountProfileCard'
 import AccountSecurityPanel from '../components/layout/AccountSecurityPanel'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
@@ -40,10 +37,6 @@ function AccountPage() {
                                 />
                                 <AccountSecurityPanel onChangePasswordClick={() => setChangePasswordOpen(true)} />
                             </div>
-
-                            <AccountActivityLogPanel />
-                            <AccountPreferencesGrid />
-                            <AccountFooterActions />
                         </div>
                     </div>
                 </div>

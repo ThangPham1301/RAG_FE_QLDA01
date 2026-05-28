@@ -1,26 +1,29 @@
 import { createElement } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useAppSettings } from '../../context/AppSettingsContext'
 import {
     BarChart3,
     BookOpen,
     ChartNoAxesCombined,
     LayoutDashboard,
     MessageSquare,
-    Settings,
+    UserRound,
     Users,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-    { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
-    { label: 'Library', icon: BookOpen, to: '/library' },
-    { label: 'Chat', icon: MessageSquare, to: '/chat' },
-    { label: 'Summarize', icon: ChartNoAxesCombined },
-    { label: 'Statistics', icon: BarChart3, to: '/statistics' },
-    { label: 'Team', icon: Users },
-    { label: 'Settings', icon: Settings, to: '/account' },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
+    { id: 'library', label: 'Library', icon: BookOpen, to: '/library' },
+    { id: 'chat', label: 'Chat', icon: MessageSquare, to: '/chat' },
+    { id: 'summarize', label: 'Summarize', icon: ChartNoAxesCombined },
+    { id: 'statistics', label: 'Statistics', icon: BarChart3, to: '/statistics' },
+    { id: 'team', label: 'Team', icon: Users },
+    { id: 'profile', label: 'Profile', icon: UserRound, to: '/account' },
 ]
 
 function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' }) {
+    const { t } = useAppSettings()
+
     return (
         <aside className="flex w-full max-w-64 flex-col border-r border-slate-800/70 bg-slate-950/95 py-6 text-slate-100 shadow-[0_24px_80px_rgba(2,6,23,0.35)] backdrop-blur-xl">
             <div className="mx-3 flex items-center gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4 shadow-[0_12px_30px_rgba(2,6,23,0.18)]">
@@ -34,8 +37,9 @@ function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' })
             </div>
 
             <nav className="mt-6 space-y-1 px-3">
-                {NAV_ITEMS.map(({ label, icon: Icon, to }) => {
+                {NAV_ITEMS.map(({ id, label, icon: Icon, to }) => {
                     const fallbackActive = label === activeItem
+                    const displayLabel = t.nav[id] || label
 
                     if (!to) {
                         return (
@@ -45,9 +49,9 @@ function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' })
                                 className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition-all duration-200 ${fallbackActive
                                     ? 'bg-white/10 font-semibold text-white ring-1 ring-white/10 shadow-[0_10px_24px_rgba(15,23,42,0.18)]'
                                     : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                                    }`}
+                                }`}
                                 aria-current={fallbackActive ? 'page' : undefined}
-                                title={label}
+                                title={displayLabel}
                             >
                                 <span
                                     className={`grid h-8 w-8 place-items-center rounded-xl ${fallbackActive ? 'bg-linear-to-br from-cyan-400 to-blue-600 text-white' : 'bg-white/10 text-slate-300'
@@ -56,7 +60,7 @@ function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' })
                                 >
                                     {createElement(Icon, { size: 16, strokeWidth: 2.2 })}
                                 </span>
-                                <span className={fallbackActive ? 'font-semibold' : 'font-medium'}>{label}</span>
+                                <span className={fallbackActive ? 'font-semibold' : 'font-medium'}>{displayLabel}</span>
                             </button>
                         )
                     }
@@ -72,7 +76,7 @@ function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' })
                                 }`
                             }
                             end={to === '/dashboard'}
-                            title={label}
+                            title={displayLabel}
                         >
                             {({ isActive }) => (
                                 <>
@@ -83,7 +87,7 @@ function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' })
                                     >
                                         {createElement(Icon, { size: 16, strokeWidth: 2.2 })}
                                     </span>
-                                    <span className={isActive ? 'font-semibold' : 'font-medium'}>{label}</span>
+                                    <span className={isActive ? 'font-semibold' : 'font-medium'}>{displayLabel}</span>
                                 </>
                             )}
                         </NavLink>

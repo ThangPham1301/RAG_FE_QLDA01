@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { X, Upload } from 'lucide-react'
 import { updateProfile, uploadAvatar } from '../../services/authService'
 import { useAuth } from '../../context/AuthContext'
@@ -15,6 +15,20 @@ function EditProfileModal({ isOpen, onClose, user, onSuccess }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [error, setError] = useState(null)
   const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    setFormData({
+      first_name: user?.first_name || '',
+      last_name: user?.last_name || '',
+      bio: user?.bio || '',
+      avatar_url: user?.avatar_url || '',
+    })
+    setError(null)
+  }, [isOpen, user])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target

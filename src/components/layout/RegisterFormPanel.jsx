@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import PrimaryButton from '../ui/PrimaryButton'
 import FormInputField from '../ui/FormInputField'
 import { useAuth } from '../../context/AuthContext'
@@ -8,13 +9,15 @@ import { validatePassword, getPasswordStrength } from '../../utils/auth'
 
 function RegisterFormPanel() {
   const navigate = useNavigate()
-  const { login: authLogin, setError: setAuthError } = useAuth()
+  const { setError: setAuthError } = useAuth()
   
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [errors, setErrors] = useState({})
@@ -54,7 +57,7 @@ function RegisterFormPanel() {
 
     setLoading(true)
     try {
-      const response = await signUp({
+      await signUp({
         email,
         firstName,
         lastName,
@@ -108,7 +111,7 @@ function RegisterFormPanel() {
           </div>
 
           <FormInputField
-            label="INSTITUTIONAL EMAIL"
+            label="EMAIL"
             type="email"
             placeholder="name@organization.edu"
             value={email}
@@ -119,13 +122,23 @@ function RegisterFormPanel() {
 
           <div className="space-y-3">
             <FormInputField
-              label="SECURITY PROTOCOL"
-              type="password"
+              label="PASSWORD"
+              type={showPassword ? 'text' : 'password'}
               placeholder="••••••••••••"
               value={password}
               onChange={setPassword}
               error={errors.password}
               trailingMarker={passwordValid}
+              trailingAction={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-white/70 hover:text-blue-800"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              }
             />
             {password && (
               <div className="space-y-2">
@@ -150,12 +163,22 @@ function RegisterFormPanel() {
 
           <FormInputField
             label="CONFIRM PASSWORD"
-            type="password"
+            type={showPasswordConfirm ? 'text' : 'password'}
             placeholder="••••••••••••"
             value={passwordConfirm}
             onChange={setPasswordConfirm}
             error={errors.passwordConfirm}
             trailingMarker={passwordMatch}
+            trailingAction={
+              <button
+                type="button"
+                onClick={() => setShowPasswordConfirm((visible) => !visible)}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-white/70 hover:text-blue-800"
+                aria-label={showPasswordConfirm ? 'Hide confirm password' : 'Show confirm password'}
+              >
+                {showPasswordConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            }
           />
 
           {error && (

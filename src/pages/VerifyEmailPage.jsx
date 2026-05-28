@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams, useNavigate, Link } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { CheckCircle, AlertCircle, Loader } from 'lucide-react'
 import { verifyEmail } from '../services/authService'
 
 function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
   const [status, setStatus] = useState('loading') // loading, success, error
   const [message, setMessage] = useState('')
   const token = searchParams.get('token')
@@ -21,12 +20,7 @@ function VerifyEmailPage() {
       try {
         const response = await verifyEmail(token)
         setStatus('success')
-        setMessage(response.message || 'Email verified successfully! Redirecting to login...')
-        
-        // Redirect to login after 2 seconds
-        setTimeout(() => {
-          navigate('/login')
-        }, 2000)
+        setMessage(response.message || 'Your email has been verified successfully.')
       } catch (err) {
         setStatus('error')
         const errorMsg = err.response?.data?.detail || err.message || 'Email verification failed'
@@ -35,50 +29,46 @@ function VerifyEmailPage() {
     }
 
     verifyEmailToken()
-  }, [token, navigate])
+  }, [token])
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
+    <main className="flex min-h-screen items-center justify-center bg-[#f3f8ff] p-4 font-['Inter']">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          {/* Loading State */}
+        <div className="rounded-2xl border border-white/60 bg-white p-8 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
           {status === 'loading' && (
-            <div className="text-center space-y-4">
+            <div className="space-y-4 text-center">
               <div className="flex justify-center">
-                <Loader className="w-12 h-12 text-blue-600 animate-spin" />
+                <Loader className="h-12 w-12 animate-spin text-blue-700" />
               </div>
               <h1 className="text-2xl font-bold text-slate-900">Verifying Email</h1>
               <p className="text-slate-600">Please wait while we verify your email address...</p>
             </div>
           )}
 
-          {/* Success State */}
           {status === 'success' && (
-            <div className="text-center space-y-4">
+            <div className="space-y-5 text-center">
               <div className="flex justify-center">
-                <CheckCircle className="w-12 h-12 text-green-600" />
+                <CheckCircle className="h-14 w-14 text-emerald-600" />
               </div>
-              <h1 className="text-2xl font-bold text-slate-900">Email Verified!</h1>
+              <h1 className="text-2xl font-bold text-slate-900">Email Verified</h1>
               <p className="text-slate-600">{message}</p>
-              <p className="text-sm text-slate-500 mt-4">Redirecting to login...</p>
               <Link
                 to="/login"
-                className="inline-block mt-4 px-6 py-2 bg-blue-900 text-white rounded-lg font-semibold hover:bg-blue-800 transition"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-blue-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800"
               >
-                Go to Login
+                Go to Login Page
               </Link>
             </div>
           )}
 
-          {/* Error State */}
           {status === 'error' && (
-            <div className="text-center space-y-4">
+            <div className="space-y-5 text-center">
               <div className="flex justify-center">
-                <AlertCircle className="w-12 h-12 text-red-600" />
+                <AlertCircle className="h-14 w-14 text-red-600" />
               </div>
               <h1 className="text-2xl font-bold text-slate-900">Verification Failed</h1>
               <p className="text-slate-600">{message}</p>
-              <div className="space-y-2 mt-6">
+              <div className="mt-6 space-y-2">
                 <p className="text-sm text-slate-500">
                   If the link is expired or invalid, you can:
                 </p>
@@ -100,9 +90,8 @@ function VerifyEmailPage() {
             </div>
           )}
 
-          {/* Footer */}
-          <div className="mt-8 pt-6 border-t border-slate-200 text-center text-sm text-slate-600">
-            <p>Need help? <a href="#" className="text-blue-600 hover:underline">Contact Support</a></p>
+          <div className="mt-8 border-t border-slate-200 pt-6 text-center text-sm text-slate-600">
+            <p>Need help? <span className="text-blue-700">Contact Support</span></p>
           </div>
         </div>
       </div>
