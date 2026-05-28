@@ -1,9 +1,7 @@
 import { createElement } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-    BarChart3,
     BookOpen,
-    ChartNoAxesCombined,
     LayoutDashboard,
     MessageSquare,
     Settings,
@@ -14,9 +12,7 @@ const NAV_ITEMS = [
     { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
     { label: 'Library', icon: BookOpen, to: '/library' },
     { label: 'Chat', icon: MessageSquare, to: '/chat' },
-    { label: 'Summarize', icon: ChartNoAxesCombined },
-    { label: 'Statistics', icon: BarChart3, to: '/statistics' },
-    { label: 'Team', icon: Users },
+    { label: 'Team', icon: Users, to: '/team' },
     { label: 'Settings', icon: Settings, to: '/account' },
 ]
 

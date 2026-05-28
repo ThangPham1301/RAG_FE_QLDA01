@@ -17,7 +17,6 @@ function DocumentDetailPage() {
 
                 <div className="flex min-h-screen flex-1 flex-col">
                     <WorkspaceTopBar
-                        placeholder="Search archive..."
                         profileName="Dr. Sarah Chen"
                         profileRole="Senior Researcher"
                         avatarSrc={topbarAvatar}

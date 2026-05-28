@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import topbarAvatar from '../assets/library/topbar-avatar.png'
-import { StatisticsAPI } from '../api/client'
+import { DocumentsAPI, TeamsAPI } from '../api/client'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
 import LibraryDocumentPanel from '../components/layout/LibraryDocumentPanel'
 import LibraryHeader from '../components/layout/LibraryHeader'
@@ -8,56 +8,42 @@ import LibraryStatsGrid from '../components/layout/LibraryStatsGrid'
 import WorkspaceTopBar from '../components/layout/WorkspaceTopBar'
 import DocumentPreviewModal from '../components/layout/DocumentPreviewModal'
 
-/**
- * Flatten the library tree from StatisticsAPI.overview() → library.projects
- * Structure: projects[] → chat_sessions[] → documents[]
- */
-const flattenLibraryTree = (projects = []) => {
-    const docs = []
-    for (const project of projects) {
-        for (const chat of project.chat_sessions || []) {
-            for (const doc of chat.documents || []) {
-                docs.push({
-                    id: doc.document_id,
-                    title: doc.title,
-                    file_type: doc.file_type,
-                    index_status: String(doc.index_status || 'pending').toLowerCase(),
-                    indexed_chunks: doc.indexed_chunks,
-                    updated_at: doc.uploaded_at,
-                    uploaded_at: doc.uploaded_at,
-                    project_name: project.project_name,
-                    project_id: project.project_id,
-                    chat_session_id: chat.chat_session_id,
-                    chat_session_title: chat.chat_session_title,
-                    source: chat.chat_session_title,
-                    file_url: doc.file_url || '',
-                    extracted_text_preview: doc.extracted_text_preview || '',
-                })
-            }
-        }
-    }
-    return docs
-}
+const normalizeDocument = (doc, sourceLabel) => ({
+    ...doc,
+    id: doc.id || doc.document_id,
+    index_status: String(doc.index_status || 'pending').toLowerCase(),
+    updated_at: doc.updated_at || doc.uploaded_at,
+    source: sourceLabel || doc.source || doc.chat_session_title,
+    extracted_text_preview: doc.extracted_text_preview || doc.extracted_text || '',
+})
 
 function LibraryPage() {
-    const [documents, setDocuments] = useState([])
+    const [libraryGroups, setLibraryGroups] = useState({
+        myDocuments: [],
+        sharedWithMe: [],
+        teamDocuments: [],
+    })
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState('')
     const [previewDoc, setPreviewDoc] = useState(null)
+    const [shareDoc, setShareDoc] = useState(null)
+    const [shareEmail, setShareEmail] = useState('')
+    const [shareStatus, setShareStatus] = useState('')
 
     const loadDocuments = useCallback(async () => {
         setIsLoading(true)
         setError('')
         try {
-            const response = await StatisticsAPI.overview()
+            const response = await TeamsAPI.sharedLibrary()
             const data = response.data || {}
-            // library.projects is the nested tree built by BE
-            const projectsTree = data?.library?.projects || []
-            const docs = flattenLibraryTree(projectsTree)
-            setDocuments(docs)
+            setLibraryGroups({
+                myDocuments: (data.my_documents || []).map((doc) => normalizeDocument(doc, doc.chat_session_title || 'My Documents')),
+                sharedWithMe: (data.shared_with_me || []).map((doc) => normalizeDocument(doc, 'Shared With Me')),
+                teamDocuments: (data.team_documents || []).map((doc) => normalizeDocument(doc, 'Team Documents')),
+            })
         } catch (err) {
             console.error('Error loading library documents:', err)
-            setError(err?.response?.data?.detail || 'Không thể tải danh sách tài liệu.')
+            setError(err?.response?.data?.detail || 'Khong the tai danh sach tai lieu.')
         } finally {
             setIsLoading(false)
         }
@@ -67,12 +53,35 @@ function LibraryPage() {
         loadDocuments()
     }, [loadDocuments])
 
+    const submitShare = async () => {
+        if (!shareDoc || !shareEmail.trim()) return
+        try {
+            setShareStatus('Sharing...')
+            await DocumentsAPI.share(shareDoc.id, shareEmail.trim())
+            setShareStatus('Shared successfully.')
+            setShareEmail('')
+            setTimeout(() => {
+                setShareDoc(null)
+                setShareStatus('')
+            }, 700)
+        } catch (err) {
+            console.error(err)
+            const data = err?.response?.data
+            setShareStatus(data?.email?.[0] || data?.non_field_errors?.[0] || data?.detail || 'Cannot share this document.')
+        }
+    }
+
     const stats = useMemo(() => {
+        const documents = [
+            ...libraryGroups.myDocuments,
+            ...libraryGroups.sharedWithMe,
+            ...libraryGroups.teamDocuments,
+        ]
         const totalDocuments = documents.length
         const indexedDocuments = documents.filter((doc) => ['indexed', 'ready'].includes(doc.index_status)).length
         const failedDocuments = documents.filter((doc) => ['failed', 'error'].includes(doc.index_status)).length
         return { totalDocuments, indexedDocuments, failedDocuments }
-    }, [documents])
+    }, [libraryGroups])
 
     return (
         <main className="min-h-screen bg-white">
@@ -81,7 +90,6 @@ function LibraryPage() {
 
                 <div className="flex min-h-screen flex-1 flex-col">
                     <WorkspaceTopBar
-                        placeholder="Search archive..."
                         profileName="Dr. Sarah Chen"
                         profileRole="Senior Researcher"
                         avatarSrc={topbarAvatar}
@@ -92,9 +100,30 @@ function LibraryPage() {
                             <LibraryHeader />
                             <LibraryStatsGrid stats={stats} />
                             <LibraryDocumentPanel
-                                documents={documents}
+                                title="My Documents"
+                                description="Files owned by you from your chats and workspaces."
+                                documents={libraryGroups.myDocuments}
                                 isLoading={isLoading}
                                 error={error}
+                                onRefresh={loadDocuments}
+                                onPreviewDocument={setPreviewDoc}
+                                onShareDocument={setShareDoc}
+                            />
+                            <LibraryDocumentPanel
+                                title="Shared With Me"
+                                description="Files shared directly with you. You can view and download them, but ownership stays with the original uploader."
+                                documents={libraryGroups.sharedWithMe}
+                                isLoading={isLoading}
+                                error=""
+                                onRefresh={loadDocuments}
+                                onPreviewDocument={setPreviewDoc}
+                            />
+                            <LibraryDocumentPanel
+                                title="Team Documents"
+                                description="Read-only team workspace files governed by team membership permissions."
+                                documents={libraryGroups.teamDocuments}
+                                isLoading={isLoading}
+                                error=""
                                 onRefresh={loadDocuments}
                                 onPreviewDocument={setPreviewDoc}
                             />
@@ -108,6 +137,33 @@ function LibraryPage() {
                     document={previewDoc}
                     onClose={() => setPreviewDoc(null)}
                 />
+            )}
+            {shareDoc && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md rounded-2xl bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
+                        <div className="border-b border-slate-200 px-5 py-4">
+                            <h2 className="text-base font-bold text-slate-900">Share File</h2>
+                            <p className="mt-1 truncate text-sm text-slate-500">{shareDoc.title}</p>
+                        </div>
+                        <div className="space-y-3 p-5">
+                            <input
+                                value={shareEmail}
+                                onChange={(event) => setShareEmail(event.target.value)}
+                                placeholder="recipient@gmail.com"
+                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                            />
+                            {shareStatus && <p className="text-sm text-slate-600">{shareStatus}</p>}
+                        </div>
+                        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+                            <button type="button" onClick={() => { setShareDoc(null); setShareEmail(''); setShareStatus('') }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                                Cancel
+                            </button>
+                            <button type="button" onClick={submitShare} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+                                Share
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </main>
     )

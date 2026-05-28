@@ -1,10 +1,9 @@
-import { Bell, LogOut, Search, SlidersHorizontal } from 'lucide-react'
+import { Bell, LogOut, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
 function WorkspaceTopBar({
-    placeholder = 'Search archive...',
     profileName = 'Dr. Aris Thorne',
     profileRole = 'Lead Researcher',
     avatarSrc,
@@ -30,14 +29,7 @@ function WorkspaceTopBar({
 
     return (
         <header className="flex h-[78px] items-center justify-between border-b border-slate-200/80 bg-white/80 px-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-            <div className="flex h-12 w-full max-w-md items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 text-slate-500 shadow-sm">
-                <Search size={16} className="shrink-0 text-slate-500" />
-                <input
-                    type="text"
-                    placeholder={placeholder}
-                    className="w-full bg-transparent text-sm text-slate-600 outline-none placeholder:text-slate-400"
-                />
-            </div>
+            <div />
 
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 text-slate-500">

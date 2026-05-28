@@ -8,6 +8,7 @@ import ChatPage from './pages/ChatPage'
 import DashboardPage from './pages/DashboardPage'
 import DocumentDetailPage from './pages/DocumentDetailPage'
 import LibraryPage from './pages/LibraryPage'
+import TeamPage from './pages/TeamPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -61,19 +62,20 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/statistics"
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/statistics" element={<Navigate to="/dashboard" replace />} />
         <Route
           path="/library"
           element={
             <ProtectedRoute>
               <LibraryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/team"
+          element={
+            <ProtectedRoute>
+              <TeamPage />
             </ProtectedRoute>
           }
         />

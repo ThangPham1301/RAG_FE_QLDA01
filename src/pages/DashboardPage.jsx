@@ -73,16 +73,16 @@ function DashboardPage() {
         }
     }, [])
 
-    const handleExportReport = async () => {
+    const handleExportReport = async (format = 'csv') => {
         setIsExporting(true)
         setError('')
         try {
-            const response = await StatisticsAPI.export({}, 'csv')
+            const response = await StatisticsAPI.export({}, format)
             const blob = response.data
             const url = window.URL.createObjectURL(blob)
             const link = document.createElement('a')
             link.href = url
-            link.download = `statistics-${new Date().toISOString().slice(0, 10)}.csv`
+            link.download = `statistics-${new Date().toISOString().slice(0, 10)}.${format}`
             document.body.appendChild(link)
             link.click()
             link.remove()
@@ -163,7 +163,6 @@ function DashboardPage() {
 
                 <div className="flex min-h-screen flex-1 flex-col">
                     <WorkspaceTopBar
-                        placeholder="Search archive..."
                         profileName="Dr. Aris Thorne"
                         profileRole="Lead Researcher"
                         avatarSrc={avatarProfile}
