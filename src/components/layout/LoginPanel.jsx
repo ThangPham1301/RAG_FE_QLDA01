@@ -1,10 +1,6 @@
-import googleIcon from '../../assets/auth/google.png'
-import ssoIcon from '../../assets/auth/sso.png'
 import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import PrimaryButton from '../ui/PrimaryButton'
-import OrDivider from '../ui/OrDivider'
-import SocialButton from '../ui/SocialButton'
 import TextInput from '../ui/TextInput'
 import { useAuth } from '../../context/AuthContext'
 import { googleLogin, login } from '../../services/authService'
@@ -19,60 +15,58 @@ function LoginPanel() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [googleReady, setGoogleReady] = useState(false)
   const googleButtonRef = useRef(null)
+  const googleConfigured = Boolean(googleClientId && !googleClientId.startsWith('your-'))
 
   useEffect(() => {
-    if (!googleClientId) {
+    if (!googleConfigured) {
       return undefined
     }
 
     let cancelled = false
 
+    const handleGoogleCredential = async (credentialResponse) => {
+      if (!credentialResponse?.credential) {
+        setError('Google did not return a login token. Please try again.')
+        return
+      }
+
+      setGoogleLoading(true)
+      setError(null)
+
+      try {
+        const response = await googleLogin(credentialResponse.credential)
+        authLogin(response.user, response.tokens)
+        navigate('/dashboard', { replace: true })
+      } catch (err) {
+        const errorData = err.response?.data || {}
+        const errorMessage = errorData.detail || errorData.error || err.message || 'Google login failed'
+        setError(errorMessage)
+        setAuthError(errorMessage)
+      } finally {
+        setGoogleLoading(false)
+      }
+    }
+
     const initializeGoogle = () => {
-      if (cancelled || !window.google?.accounts?.id) {
+      if (cancelled || !window.google?.accounts?.id || !googleButtonRef.current) {
         return
       }
 
       window.google.accounts.id.initialize({
         client_id: googleClientId,
-        callback: async (credentialResponse) => {
-          if (!credentialResponse?.credential) {
-            setGoogleLoading(false)
-            setError('Google login failed to return a token.')
-            return
-          }
-
-          setGoogleLoading(true)
-          setError(null)
-
-          try {
-            const response = await googleLogin(credentialResponse.credential)
-            authLogin(response.user, response.tokens)
-            navigate('/dashboard', { replace: true })
-          } catch (err) {
-            const errorData = err.response?.data || {}
-            const errorMessage = errorData.error || errorData.detail || err.message || 'Google login failed'
-            setError(errorMessage)
-            setAuthError(errorMessage)
-          } finally {
-            setGoogleLoading(false)
-          }
-        },
+        callback: handleGoogleCredential,
       })
 
-      if (googleButtonRef.current) {
-        googleButtonRef.current.innerHTML = ''
-        window.google.accounts.id.renderButton(googleButtonRef.current, {
-          theme: 'outline',
-          size: 'large',
-          shape: 'rectangular',
-          text: 'signin_with',
-          width: 320,
-        })
-      }
-
-      setGoogleReady(true)
+      googleButtonRef.current.innerHTML = ''
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        shape: 'rectangular',
+        text: 'continue_with',
+        width: 320,
+        locale: 'en',
+      })
     }
 
     if (window.google?.accounts?.id) {
@@ -82,8 +76,17 @@ function LoginPanel() {
       }
     }
 
+    const existingScript = document.querySelector('script[src^="https://accounts.google.com/gsi/client"]')
+    if (existingScript) {
+      existingScript.addEventListener('load', initializeGoogle)
+      return () => {
+        cancelled = true
+        existingScript.removeEventListener('load', initializeGoogle)
+      }
+    }
+
     const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
+    script.src = 'https://accounts.google.com/gsi/client?hl=en'
     script.async = true
     script.defer = true
     script.onload = initializeGoogle
@@ -91,8 +94,9 @@ function LoginPanel() {
 
     return () => {
       cancelled = true
+      script.onload = null
     }
-  }, [authLogin, googleClientId, navigate, setAuthError])
+  }, [authLogin, googleClientId, googleConfigured, navigate, setAuthError])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -158,6 +162,10 @@ function LoginPanel() {
       }
 
       // Handle specific error cases
+      if (errorData.code === 'email_not_verified') {
+        errorMessage = 'Tài khoản chưa xác thực email. Hệ thống đã gửi lại email xác thực, vui lòng kiểm tra hộp thư và xác nhận.'
+      }
+
       if (errorMessage.includes('Email not verified')) {
         errorMessage = 'Please verify your email before logging in. Check your inbox for the verification link.'
       }
@@ -180,10 +188,10 @@ function LoginPanel() {
     <section className="w-full max-w-md rounded-2xl border border-white/40 bg-white/75 p-10 shadow-[0_28px_64px_rgba(15,23,42,0.14)] backdrop-blur-xl">
       <div className="space-y-1">
         <h3 className="font-['Manrope'] text-2xl font-bold text-slate-900">
-          Welcome Back
+          Sign in to your workspace
         </h3>
         <p className="text-sm text-slate-600">
-          Please enter your credentials to access the Slate.
+          Access your document archive, summarization tools, and administrative document Q&A.
         </p>
       </div>
 
@@ -219,31 +227,34 @@ function LoginPanel() {
 
         <div className="space-y-4">
           <PrimaryButton type="submit" loading={loading}>
-            SIGN IN TO DASHBOARD
+            SIGN IN
           </PrimaryButton>
-          <Link
-            to="/chat"
-            className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            GO TO CHAT (DEMO)
-          </Link>
-          <OrDivider text="OR CONTINUE WITH" />
-          <div className="flex flex-col gap-4">
+
+          <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.16em] text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>OR</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          {googleConfigured ? (
             <div className="flex justify-center">
               <div ref={googleButtonRef} className={googleLoading ? 'pointer-events-none opacity-60' : ''} />
             </div>
-            <SocialButton icon={ssoIcon} label="SSO" />
-          </div>
+          ) : (
+            <div className="rounded-lg bg-amber-50 p-3 text-xs font-medium text-amber-800">
+              Google login is not configured. Set VITE_GOOGLE_CLIENT_ID in the frontend environment.
+            </div>
+          )}
         </div>
       </form>
 
       <p className="mt-8 text-center text-sm text-slate-600">
-        New to Cognitive Slate?{' '}
+        Don't have an account?{' '}
         <Link
           to="/register"
           className="font-semibold text-blue-900 transition hover:text-blue-700"
         >
-          Request Access
+          Create account
         </Link>
       </p>
     </section>

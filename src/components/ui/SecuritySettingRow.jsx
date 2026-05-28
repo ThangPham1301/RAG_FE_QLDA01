@@ -1,8 +1,24 @@
-function SecuritySettingRow({ icon, title, description, actionLabel, actionTone = 'neutral', toggled = false, onAction }) {
+function SecuritySettingRow({
+    icon,
+    title,
+    description,
+    actionLabel,
+    actionTone = 'neutral',
+    toggled = null,
+    statusLabel,
+    statusTone = 'neutral',
+    onAction,
+}) {
     const actionClass =
         actionTone === 'danger'
             ? 'text-rose-700 hover:text-rose-600'
             : 'text-blue-800 hover:text-blue-700'
+    const statusClass =
+        statusTone === 'success'
+            ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+            : statusTone === 'warning'
+                ? 'bg-amber-50 text-amber-700 ring-amber-100'
+                : 'bg-slate-50 text-slate-600 ring-slate-100'
 
     return (
         <article className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white p-4">
@@ -20,7 +36,11 @@ function SecuritySettingRow({ icon, title, description, actionLabel, actionTone 
                 <button type="button" onClick={onAction} className={`text-xs font-bold tracking-wide ${actionClass}`}>
                     {actionLabel}
                 </button>
-            ) : (
+            ) : statusLabel ? (
+                <span className={`rounded-full px-3 py-1 text-[11px] font-bold ring-1 ${statusClass}`}>
+                    {statusLabel}
+                </span>
+            ) : toggled !== null ? (
                 <button
                     type="button"
                     aria-pressed={toggled}
@@ -32,6 +52,8 @@ function SecuritySettingRow({ icon, title, description, actionLabel, actionTone 
                             }`}
                     />
                 </button>
+            ) : (
+                null
             )}
         </article>
     )
