@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Check, Download, Eye, RefreshCw, Send, Upload, Users, X } from 'lucide-react'
+import { Check, Download, Eye, File, FileImage, FileText, LogOut, RefreshCw, Send, Upload, UserMinus, Users, X } from 'lucide-react'
 import { DocumentsAPI, TeamsAPI } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
 import WorkspaceTopBar from '../components/layout/WorkspaceTopBar'
 import topbarAvatar from '../assets/library/topbar-avatar.png'
 
 function TeamPage() {
+  const { user } = useAuth()
   const [teams, setTeams] = useState([])
   const [teamDocuments, setTeamDocuments] = useState({})
   const [invitations, setInvitations] = useState([])
@@ -121,6 +123,49 @@ function TeamPage() {
     }
   }
 
+  const currentUserId = String(user?.id || user?.user_id || '')
+
+  const isTeamOwner = (team) => (
+    String(team.owner) === currentUserId
+    || (team.members || []).some((member) => String(member.user) === currentUserId && member.role === 'owner')
+  )
+
+  const leaveTeam = async (team) => {
+    const confirmed = window.confirm(`Leave team "${team.name}"? Team documents will be removed from your chats.`)
+    if (!confirmed) return
+    try {
+      setLoading(true)
+      await TeamsAPI.leave(team.id)
+      await loadData()
+    } catch (error) {
+      console.error(error)
+      setMessage(error?.response?.data?.error || 'Cannot leave this team.')
+      setLoading(false)
+    }
+  }
+
+  const kickMember = async (team, member) => {
+    const confirmed = window.confirm(`Kick ${member.email} from "${team.name}"? Team documents will be removed from their chats.`)
+    if (!confirmed) return
+    try {
+      setLoading(true)
+      await TeamsAPI.kickMember(team.id, member.user)
+      await loadData()
+    } catch (error) {
+      console.error(error)
+      setMessage(error?.response?.data?.error || 'Cannot kick this member.')
+      setLoading(false)
+    }
+  }
+
+  const getFileIconStyle = (fileType) => {
+    const type = String(fileType || '').toLowerCase()
+    if (type === 'pdf') return { Icon: FileText, className: 'bg-rose-100 text-rose-700' }
+    if (type === 'docx' || type === 'doc') return { Icon: FileText, className: 'bg-blue-100 text-blue-700' }
+    if (type === 'image') return { Icon: FileImage, className: 'bg-violet-100 text-violet-700' }
+    return { Icon: File, className: 'bg-slate-100 text-slate-700' }
+  }
+
   const formatFileSize = (size) => {
     const value = Number(size || 0)
     if (!value) return '0 B'
@@ -221,13 +266,38 @@ function TeamPage() {
                         <h3 className="truncate text-base font-bold text-slate-900">{team.name}</h3>
                         <p className="text-xs text-slate-500">{team.member_count} members</p>
                       </div>
+                      {!isTeamOwner(team) && (
+                        <button
+                          type="button"
+                          onClick={() => leaveTeam(team)}
+                          disabled={loading}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 disabled:opacity-40"
+                          title="Leave team"
+                        >
+                          <LogOut size={13} />
+                          Leave
+                        </button>
+                      )}
                     </div>
 
                     <div className="mt-4 space-y-2">
                       {(team.members || []).map((member) => (
                         <div key={member.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
                           <span className="truncate text-slate-700">{member.email}</span>
-                          <span className="text-xs font-semibold uppercase text-slate-400">{member.role}</span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-xs font-semibold uppercase text-slate-400">{member.role}</span>
+                            {isTeamOwner(team) && member.role !== 'owner' && String(member.user) !== currentUserId && (
+                              <button
+                                type="button"
+                                onClick={() => kickMember(team, member)}
+                                disabled={loading}
+                                className="rounded-md p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+                                title="Kick member"
+                              >
+                                <UserMinus size={14} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -269,13 +339,19 @@ function TeamPage() {
                         )}
                         {(teamDocuments[team.id] || []).map((link) => {
                           const doc = link.document || {}
+                          const { Icon, className } = getFileIconStyle(link.file_type || doc.file_type)
                           return (
                             <div key={link.id} className="border-b border-slate-100 px-3 py-3 last:border-b-0">
                               <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="truncate text-sm font-semibold text-slate-900">{link.file_name || doc.title}</div>
-                                  <div className="mt-1 text-xs text-slate-500">
-                                    {(link.file_type || doc.file_type || 'file').toUpperCase()} • {formatFileSize(link.file_size || doc.file_size)} • Uploaded by {link.uploaded_by_email || doc.uploaded_by_email || '-'} • {formatDate(link.created_at || doc.uploaded_at)}
+                                <div className="flex min-w-0 items-start gap-2">
+                                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${className}`}>
+                                    <Icon size={15} />
+                                  </span>
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-semibold text-slate-900">{link.file_name || doc.title}</div>
+                                    <div className="mt-1 text-xs text-slate-500">
+                                      {(link.file_type || doc.file_type || 'file').toUpperCase()} • {formatFileSize(link.file_size || doc.file_size)} • Uploaded by {link.uploaded_by_email || doc.uploaded_by_email || '-'} • {formatDate(link.created_at || doc.uploaded_at)}
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="flex shrink-0 gap-1">

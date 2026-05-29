@@ -27,6 +27,7 @@ function LibraryPage() {
     const [error, setError] = useState('')
     const [previewDoc, setPreviewDoc] = useState(null)
     const [shareDoc, setShareDoc] = useState(null)
+    const [bulkShareIds, setBulkShareIds] = useState([])
     const [shareEmail, setShareEmail] = useState('')
     const [shareStatus, setShareStatus] = useState('')
 
@@ -63,20 +64,61 @@ function LibraryPage() {
     }, [loadDocuments])
 
     const submitShare = async () => {
-        if (!shareDoc || !shareEmail.trim()) return
+        if ((!shareDoc && bulkShareIds.length === 0) || !shareEmail.trim()) return
         try {
             setShareStatus('Sharing...')
-            await DocumentsAPI.share(shareDoc.id, shareEmail.trim())
-            setShareStatus('Shared successfully.')
+            if (bulkShareIds.length > 0) {
+                const response = await DocumentsAPI.bulkShare(bulkShareIds, shareEmail.trim())
+                const sharedCount = response.data?.shared?.length || 0
+                setShareStatus(`Shared ${sharedCount} document${sharedCount === 1 ? '' : 's'}.`)
+            } else {
+                await DocumentsAPI.share(shareDoc.id, shareEmail.trim())
+                setShareStatus('Shared successfully.')
+            }
             setShareEmail('')
+            await loadDocuments()
             setTimeout(() => {
                 setShareDoc(null)
+                setBulkShareIds([])
                 setShareStatus('')
             }, 700)
         } catch (err) {
             console.error(err)
             const data = err?.response?.data
             setShareStatus(data?.email?.[0] || data?.non_field_errors?.[0] || data?.detail || 'Cannot share this document.')
+        }
+    }
+
+    const deleteDocument = async (doc) => {
+        const confirmed = window.confirm(`Xoa tai lieu "${doc.title || 'Document'}"? Hanh dong nay khong the hoan tac.`)
+        if (!confirmed) return
+        try {
+            await DocumentsAPI.delete(doc.id)
+            await loadDocuments()
+        } catch (err) {
+            console.error(err)
+            setError(err?.response?.data?.error || err?.response?.data?.detail || 'Cannot delete this document.')
+        }
+    }
+
+    const bulkShareDocuments = (documentIds) => {
+        if (!documentIds || documentIds.length === 0) return
+        setBulkShareIds(documentIds)
+        setShareDoc(null)
+        setShareStatus('')
+    }
+
+    const bulkDeleteDocuments = async (documentIds, onDone) => {
+        if (!documentIds || documentIds.length === 0) return
+        const confirmed = window.confirm(`Xoa ${documentIds.length} tai lieu da chon? Hanh dong nay khong the hoan tac.`)
+        if (!confirmed) return
+        try {
+            await DocumentsAPI.bulkDelete(documentIds)
+            if (onDone) onDone()
+            await loadDocuments()
+        } catch (err) {
+            console.error(err)
+            setError(err?.response?.data?.error || err?.response?.data?.detail || 'Cannot delete selected documents.')
         }
     }
 
@@ -117,6 +159,9 @@ function LibraryPage() {
                                 onRefresh={loadDocuments}
                                 onPreviewDocument={setPreviewDoc}
                                 onShareDocument={setShareDoc}
+                                onDeleteDocument={deleteDocument}
+                                onBulkShare={bulkShareDocuments}
+                                onBulkDelete={bulkDeleteDocuments}
                             />
                             <LibraryDocumentPanel
                                 title="Shared With Me"
@@ -147,12 +192,12 @@ function LibraryPage() {
                     onClose={() => setPreviewDoc(null)}
                 />
             )}
-            {shareDoc && (
+            {(shareDoc || bulkShareIds.length > 0) && (
                 <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
                     <div className="w-full max-w-md rounded-2xl bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
                         <div className="border-b border-slate-200 px-5 py-4">
                             <h2 className="text-base font-bold text-slate-900">Share File</h2>
-                            <p className="mt-1 truncate text-sm text-slate-500">{shareDoc.title}</p>
+                            <p className="mt-1 truncate text-sm text-slate-500">{shareDoc ? shareDoc.title : `${bulkShareIds.length} selected documents`}</p>
                         </div>
                         <div className="space-y-3 p-5">
                             <input
@@ -164,7 +209,7 @@ function LibraryPage() {
                             {shareStatus && <p className="text-sm text-slate-600">{shareStatus}</p>}
                         </div>
                         <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
-                            <button type="button" onClick={() => { setShareDoc(null); setShareEmail(''); setShareStatus('') }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                            <button type="button" onClick={() => { setShareDoc(null); setBulkShareIds([]); setShareEmail(''); setShareStatus('') }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
                                 Cancel
                             </button>
                             <button type="button" onClick={submitShare} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white">

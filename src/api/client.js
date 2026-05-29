@@ -127,12 +127,14 @@ export const DocumentsAPI = {
     })
   },
   delete: (id) => client.delete(`/documents/${id}/`),
+  bulkDelete: (documentIds) => client.post('/documents/bulk-delete/', { document_ids: documentIds }),
   index: (id) => client.post(`/documents/${id}/reindex/`),
   reindex: (id) => client.post(`/documents/${id}/reindex/`),
   getFields: (id) => client.get(`/documents/${id}/fields/`),
   getOcrLayout: (id) => client.get(`/documents/${id}/ocr-layout/`),
   reextractFields: (id) => client.post(`/documents/${id}/reextract-fields/`),
   share: (id, email) => client.post(`/documents/${id}/share/`, { email }),
+  bulkShare: (documentIds, email) => client.post('/documents/bulk-share/', { document_ids: documentIds, email }),
   summary: (id, force = false) => client.post(`/documents/${id}/summary/`, { force }),
   getSummary: (id) => client.get(`/documents/${id}/summary/`),
   // Get full extracted text for preview
@@ -149,6 +151,8 @@ export const TeamsAPI = {
   list: () => client.get('/teams/'),
   create: (name) => client.post('/teams/', { name }),
   invite: (teamId, emails) => client.post(`/teams/${teamId}/invite/`, { emails }),
+  leave: (teamId) => client.post(`/teams/${teamId}/leave/`),
+  kickMember: (teamId, userId) => client.post(`/teams/${teamId}/kick-member/`, { user_id: userId }),
   documents: (teamId) => client.get(`/teams/${teamId}/documents/`),
   uploadDocuments: (teamId, formData) => client.post(`/teams/${teamId}/documents/`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

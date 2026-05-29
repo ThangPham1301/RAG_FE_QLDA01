@@ -23,6 +23,7 @@ function ChatPanel() {
   const containerRef = useRef(null)
   const inputRef = useRef(null)
   const docSelectorRef = useRef(null)
+  const skipSessionLoadRef = useRef(null)
 
   // Đóng dropdown khi click ngoài
   useEffect(() => {
@@ -53,6 +54,13 @@ function ChatPanel() {
       setEvaluationEditorOpen(false)
       return undefined
     }
+    if (selectedChat?.isTemporary) {
+      return undefined
+    }
+    if (skipSessionLoadRef.current === sessionId) {
+      skipSessionLoadRef.current = null
+      return undefined
+    }
 
     let mounted = true
     setMessages([])
@@ -71,7 +79,7 @@ function ChatPanel() {
     return () => {
       mounted = false
     }
-  }, [selectedChat?.id])
+  }, [selectedChat?.id, selectedChat?.isTemporary])
 
   useEffect(() => {
     const sessionId = selectedChat?.id
@@ -139,6 +147,7 @@ function ChatPanel() {
         setCreatingSession(true)
         const createRes = await ChatAPI.createSession(selectedProject.id)
         const realChat = createRes.data
+        skipSessionLoadRef.current = realChat.id
         setSelectedChat(realChat)
         setProjects((prev) => prev.map((p) => {
           if (p.id !== selectedProject.id) return p
@@ -162,6 +171,7 @@ function ChatPanel() {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      let completedSessionId = null
 
       while (true) {
         const { done, value } = await reader.read()
@@ -185,6 +195,7 @@ function ChatPanel() {
                   : m
               ))
             } else if (event.type === 'done') {
+              completedSessionId = event.session_id || sessionToUse.id
               // Stream xong → finalize message (xoá flag isStreaming)
               setMessages((list) => list.map((m) =>
                 m.id === streamingId
@@ -199,6 +210,18 @@ function ChatPanel() {
             // ignore JSON parse errors
           }
         }
+      }
+
+      if (completedSessionId) {
+        const refreshed = await ChatAPI.getSession(completedSessionId)
+        const detail = refreshed.data
+        setSelectedChat(detail)
+        setMessages(detail.messages || [])
+        setProjects((prev) => prev.map((p) => {
+          if (p.id !== selectedProject.id) return p
+          const withoutCurrent = (p.chats || []).filter((chat) => chat.id !== detail.id && chat.id !== tempId)
+          return { ...p, chats: [detail, ...withoutCurrent] }
+        }))
       }
     } catch (error) {
       console.error('[Chat] Stream error:', error)

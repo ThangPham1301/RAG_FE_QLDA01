@@ -69,7 +69,7 @@ function WorkspaceTopBar({
     }
 
     return (
-        <header className="flex h-[78px] items-center justify-between border-b border-slate-200/80 bg-white/80 px-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+        <header className="relative z-[120] flex h-[78px] items-center justify-between border-b border-slate-200/80 bg-white/80 px-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
             <div />
 
             <div className="flex items-center gap-4">
@@ -91,7 +91,7 @@ function WorkspaceTopBar({
                         </button>
 
                         {notificationsOpen && (
-                            <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-96 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
+                            <div className="absolute right-0 top-[calc(100%+10px)] z-[130] w-96 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
                                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                                     <div>
                                         <p className="font-['Manrope'] text-sm font-extrabold text-slate-900">Notifications</p>
@@ -156,7 +156,7 @@ function WorkspaceTopBar({
                     </button>
 
                     {menuOpen && (
-                        <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
+                        <div className="absolute right-0 top-[calc(100%+10px)] z-[130] w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
                             <button
                                 type="button"
                                 onClick={handleProfileClick}

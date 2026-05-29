@@ -4,6 +4,8 @@ import {
   BookOpen,
   ChevronDown,
   FileText,
+  File,
+  FileImage,
   Folder,
   FolderPlus,
   LayoutDashboard,
@@ -27,6 +29,14 @@ const NAV_ITEMS = [
   { label: 'Team', icon: Users, to: '/team' },
   { label: 'Settings', icon: Settings, to: '/account' },
 ]
+
+const getDocumentIconStyle = (fileType) => {
+  const type = String(fileType || '').toLowerCase()
+  if (type === 'pdf') return { Icon: FileText, className: 'bg-rose-100 text-rose-700' }
+  if (type === 'docx' || type === 'doc') return { Icon: FileText, className: 'bg-blue-100 text-blue-700' }
+  if (type === 'image') return { Icon: FileImage, className: 'bg-violet-100 text-violet-700' }
+  return { Icon: File, className: 'bg-slate-500 text-slate-100' }
+}
 
 function ChatSidebar() {
   const { user } = useAuth()
@@ -100,7 +110,7 @@ function ChatSidebar() {
         return [selectedChat, ...prev]
       })
     }
-  }, [selectedChat?.id, selectedProject?.id])
+  }, [selectedChat, selectedProject?.id])
 
   useEffect(() => {
     const sessionId = selectedChat?.id
@@ -418,10 +428,12 @@ function ChatSidebar() {
                       {isChatSelected && (
                         <div className="space-y-1 pl-4">
                           {documents.length > 0 ? (
-                            documents.map((document) => (
+                            documents.map((document) => {
+                              const { Icon, className } = getDocumentIconStyle(document.file_type)
+                              return (
                               <div key={document.id} className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm text-slate-700">
-                                <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md bg-slate-500 text-slate-100" aria-hidden="true">
-                                  <FileText size={15} strokeWidth={2.2} />
+                                <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md ${className}`} aria-hidden="true">
+                                  <Icon size={15} strokeWidth={2.2} />
                                 </span>
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate font-medium">{document.title}</div>
@@ -439,7 +451,8 @@ function ChatSidebar() {
                                   <Trash2 size={14} strokeWidth={2.2} />
                                 </button>
                               </div>
-                            ))
+                              )
+                            })
                           ) : (
                             <div className="px-3 py-2 text-sm text-slate-600">No files in this chat</div>
                           )}

@@ -1,5 +1,5 @@
 import { Activity, Database, Files, FolderSync, Pin, ShieldAlert, Star, TrendingUp, UploadCloud, Users } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import avatarProfile from '../assets/dashboard/avatar-profile.png'
 import { EvaluationsAPI, StatisticsAPI } from '../api/client'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
@@ -46,6 +46,8 @@ const normalizeOverview = (responseData) => {
     }
 }
 
+const EVALUATIONS_PAGE_SIZE = 20
+
 function DashboardPage() {
     const [stats, setStats] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
@@ -53,7 +55,12 @@ function DashboardPage() {
     const [error, setError] = useState('')
     const [evaluationStats, setEvaluationStats] = useState(null)
     const [evaluations, setEvaluations] = useState([])
+    const [evaluationPage, setEvaluationPage] = useState(1)
+    const [evaluationCount, setEvaluationCount] = useState(0)
+    const [evaluationHasNext, setEvaluationHasNext] = useState(false)
+    const [evaluationHasPrevious, setEvaluationHasPrevious] = useState(false)
     const [evaluationFilter, setEvaluationFilter] = useState({ rating: '', pinned: '' })
+    const refreshTimerRef = useRef(null)
 
     useEffect(() => {
         let mounted = true
@@ -81,6 +88,7 @@ function DashboardPage() {
         const params = {
             ...(evaluationFilter.rating ? { rating: evaluationFilter.rating } : {}),
             ...(evaluationFilter.pinned ? { pinned: evaluationFilter.pinned } : {}),
+            page: evaluationPage,
         }
         Promise.all([
             EvaluationsAPI.stats(),
@@ -89,8 +97,12 @@ function DashboardPage() {
             .then(([statsResponse, listResponse]) => {
                 if (!mounted) return
                 setEvaluationStats(statsResponse.data)
-                const data = listResponse.data?.results || listResponse.data || []
-                setEvaluations(data.slice(0, 8))
+                const payload = listResponse.data || {}
+                const data = payload.results || payload || []
+                setEvaluations(data)
+                setEvaluationCount(typeof payload.count === 'number' ? payload.count : data.length)
+                setEvaluationHasNext(Boolean(payload.next))
+                setEvaluationHasPrevious(Boolean(payload.previous))
             })
             .catch((err) => {
                 console.error('Error loading evaluations:', err)
@@ -98,36 +110,74 @@ function DashboardPage() {
         return () => {
             mounted = false
         }
-    }, [evaluationFilter])
+    }, [evaluationFilter, evaluationPage])
 
-    const refreshEvaluations = async () => {
+    const refreshEvaluations = useCallback(async () => {
         const params = {
             ...(evaluationFilter.rating ? { rating: evaluationFilter.rating } : {}),
             ...(evaluationFilter.pinned ? { pinned: evaluationFilter.pinned } : {}),
+            page: evaluationPage,
         }
         const [statsResponse, listResponse] = await Promise.all([
             EvaluationsAPI.stats(),
             EvaluationsAPI.list(params),
         ])
         setEvaluationStats(statsResponse.data)
-        const data = listResponse.data?.results || listResponse.data || []
-        setEvaluations(data.slice(0, 8))
-    }
+        const payload = listResponse.data || {}
+        const data = payload.results || payload || []
+        setEvaluations(data)
+        setEvaluationCount(typeof payload.count === 'number' ? payload.count : data.length)
+        setEvaluationHasNext(Boolean(payload.next))
+        setEvaluationHasPrevious(Boolean(payload.previous))
+    }, [evaluationFilter, evaluationPage])
+
+    const refreshDashboard = useCallback(async () => {
+        try {
+            const response = await StatisticsAPI.overview()
+            setStats(normalizeOverview(response.data))
+            setError('')
+        } catch (err) {
+            console.error('Realtime dashboard refresh failed:', err)
+        }
+    }, [])
+
+    const scheduleDashboardRefresh = useCallback((includeEvaluations = false) => {
+        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+        refreshTimerRef.current = setTimeout(() => {
+            refreshDashboard()
+            if (includeEvaluations) {
+                refreshEvaluations().catch((err) => console.error('Realtime evaluations refresh failed:', err))
+            }
+        }, 250)
+    }, [refreshDashboard, refreshEvaluations])
 
     useEffect(() => {
-        const refresh = () => {
-            refreshEvaluations()
-            StatisticsAPI.overview()
-                .then((response) => setStats(normalizeOverview(response.data)))
-                .catch((err) => console.error('Realtime dashboard refresh failed:', err))
-        }
-        window.addEventListener('realtime:evaluation', refresh)
-        window.addEventListener('realtime:document', refresh)
-        return () => {
-            window.removeEventListener('realtime:evaluation', refresh)
-            window.removeEventListener('realtime:document', refresh)
-        }
+        setEvaluationPage(1)
     }, [evaluationFilter])
+
+    useEffect(() => {
+        const refreshEvaluationsAndDashboard = (event) => {
+            if (event?.detail?.type === 'evaluation.created' && evaluationPage !== 1) {
+                setEvaluationPage(1)
+                refreshDashboard()
+                return
+            }
+            scheduleDashboardRefresh(true)
+        }
+        const refreshCharts = () => scheduleDashboardRefresh(false)
+
+        window.addEventListener('realtime:evaluation', refreshEvaluationsAndDashboard)
+        window.addEventListener('realtime:document', refreshCharts)
+        window.addEventListener('realtime:dashboard', refreshCharts)
+        window.addEventListener('realtime:team', refreshCharts)
+        return () => {
+            window.removeEventListener('realtime:evaluation', refreshEvaluationsAndDashboard)
+            window.removeEventListener('realtime:document', refreshCharts)
+            window.removeEventListener('realtime:dashboard', refreshCharts)
+            window.removeEventListener('realtime:team', refreshCharts)
+            if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+        }
+    }, [evaluationPage, refreshDashboard, scheduleDashboardRefresh])
 
     const togglePinEvaluation = async (evaluation) => {
         try {
@@ -272,6 +322,13 @@ function DashboardPage() {
                                             <option value="true">Pinned</option>
                                             <option value="false">Unpinned</option>
                                         </select>
+                                        <button
+                                            type="button"
+                                            onClick={() => refreshEvaluations()}
+                                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                        >
+                                            Refresh
+                                        </button>
                                     </div>
                                     <div className="grid grid-cols-3 gap-3 text-center">
                                         <div className="rounded-xl bg-slate-50 px-4 py-3">
@@ -319,6 +376,31 @@ function DashboardPage() {
                                             </button>
                                         </div>
                                     ))}
+                                </div>
+                                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                                    <p className="text-sm text-slate-500">
+                                        Page <span className="font-semibold text-slate-700">{evaluationPage}</span>
+                                        {' '}of <span className="font-semibold text-slate-700">{Math.max(1, Math.ceil(evaluationCount / EVALUATIONS_PAGE_SIZE))}</span>
+                                        {' '}({evaluationCount} evaluations)
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEvaluationPage((page) => Math.max(1, page - 1))}
+                                            disabled={!evaluationHasPrevious}
+                                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            Previous
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setEvaluationPage((page) => page + 1)}
+                                            disabled={!evaluationHasNext}
+                                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
                                 </div>
                             </section>
                             <DashboardChartsPanel data={stats?.chartData || []} isLoading={isLoading} />

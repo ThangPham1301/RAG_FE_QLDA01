@@ -11,11 +11,16 @@ const eventTargets = {
   'team.invitation.updated': 'realtime:team',
   'team.invitation.responded': 'realtime:team',
   'team.membership.created': 'realtime:team',
-  'team.document.created': 'realtime:team',
-  'team.document.status': 'realtime:document',
-  'document.status': 'realtime:document',
+  'team.membership.removed': ['realtime:team', 'realtime:library', 'realtime:chat'],
+  'team.document.created': ['realtime:team', 'realtime:library'],
+  'team.document.status': ['realtime:document', 'realtime:library'],
+  'document.status': ['realtime:document', 'realtime:library'],
+  'dashboard.document.created': 'realtime:dashboard',
+  'dashboard.document.status': 'realtime:dashboard',
+  'dashboard.query.created': 'realtime:dashboard',
   'document.shared': 'realtime:library',
   'chat.document.attached': 'realtime:chat',
+  'chat.document.detached': ['realtime:chat', 'realtime:library'],
   'evaluation.created': 'realtime:evaluation',
   'evaluation.updated': 'realtime:evaluation',
   'evaluation.pinned': 'realtime:evaluation',
@@ -53,8 +58,9 @@ export const RealtimeProvider = ({ children }) => {
   }, [isAuthenticated])
 
   const dispatchRealtimeEvent = useCallback((type, payload) => {
-    const eventName = eventTargets[type]
-    if (eventName) {
+    const targetNames = eventTargets[type]
+    const names = Array.isArray(targetNames) ? targetNames : (targetNames ? [targetNames] : [])
+    for (const eventName of names) {
       window.dispatchEvent(new CustomEvent(eventName, { detail: { type, payload } }))
     }
   }, [])
@@ -98,6 +104,9 @@ export const RealtimeProvider = ({ children }) => {
           }
 
           dispatchRealtimeEvent(type, payload)
+          if (type === 'notification.created' && payload?.data?.type) {
+            dispatchRealtimeEvent(payload.data.type, payload.data)
+          }
         } catch (error) {
           console.error('[Realtime] invalid message:', error)
         }
