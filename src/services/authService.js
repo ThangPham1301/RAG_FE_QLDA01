@@ -90,6 +90,16 @@ export const verifyOTP = async (email, otp, purpose = 'password_reset') => {
     otp,
     purpose,
   })
+
+  if (response.data.tokens) {
+    localStorage.setItem('accessToken', response.data.tokens.access)
+    localStorage.setItem('refreshToken', response.data.tokens.refresh)
+  }
+
+  if (response.data.user) {
+    localStorage.setItem('user', JSON.stringify(response.data.user))
+  }
+
   return response.data
 }
 
@@ -112,6 +122,9 @@ export const confirmPasswordReset = async (token, password, passwordConfirm) => 
     password,
     password_confirm: passwordConfirm,
   })
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('user')
   return response.data
 }
 
@@ -156,6 +169,20 @@ export const changePassword = async (oldPassword, newPassword, newPasswordConfir
     new_password: newPassword,
     new_password_confirm: newPasswordConfirm,
   })
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('user')
+  return response.data
+}
+
+/**
+ * Enable or disable email OTP two-factor authentication.
+ */
+export const updateTwoFactor = async (enabled) => {
+  const response = await apiClient.patch('/auth/2fa', {
+    enabled,
+  })
+  localStorage.setItem('user', JSON.stringify(response.data))
   return response.data
 }
 

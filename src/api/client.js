@@ -190,4 +190,17 @@ export const EvaluationsAPI = {
   unpin: (id) => client.post(`/chat/evaluations/${id}/unpin/`),
 }
 
+export const AdminUsersAPI = {
+  list: (params = {}) => client.get('/auth/admin/users', { params }),
+  update: (id, payload) => client.patch(`/auth/admin/users/${id}`, payload),
+  delete: (id) => client.delete(`/auth/admin/users/${id}`),
+  resetPassword: (id, payload) => client.post(`/auth/admin/users/${id}/reset-password`, payload),
+  logs: (id) => client.get(`/auth/admin/users/${id}/logs`),
+  groups: () => client.get('/auth/admin/groups'),
+  createGroup: (payload) => client.post('/auth/admin/groups', payload),
+  updateGroup: (id, payload) => client.patch(`/auth/admin/groups/${id}`, payload),
+  deleteGroup: (id) => client.delete(`/auth/admin/groups/${id}`),
+  permissions: () => client.get('/auth/admin/permissions'),
+}
+
 export default client

@@ -13,6 +13,7 @@ import {
 
 const NAV_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
+    { id: 'users', label: 'Users', icon: Users, to: '/users' },
     { id: 'library', label: 'Library', icon: BookOpen, to: '/library' },
     { id: 'chat', label: 'Chat', icon: MessageSquare, to: '/chat' },
     { id: 'team', label: 'Team', icon: Users, to: '/team' },
@@ -23,7 +24,7 @@ function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' })
     const { t } = useAppSettings()
     const { user } = useAuth()
     const navItems = isAdminUser(user)
-        ? NAV_ITEMS.filter((item) => ['dashboard', 'settings'].includes(item.id))
+        ? NAV_ITEMS.filter((item) => ['dashboard', 'users', 'settings'].includes(item.id))
         : NAV_ITEMS.filter((item) => item.id !== 'dashboard')
 
     return (

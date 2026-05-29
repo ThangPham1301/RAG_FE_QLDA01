@@ -9,6 +9,7 @@ import ChatPage from './pages/ChatPage'
 import DashboardPage from './pages/DashboardPage'
 import DocumentDetailPage from './pages/DocumentDetailPage'
 import LibraryPage from './pages/LibraryPage'
+import UserManagementPage from './pages/UserManagementPage'
 import TeamPage from './pages/TeamPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
@@ -65,6 +66,14 @@ function App() {
           }
         />
         <Route path="/statistics" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute adminOnly>
+              <UserManagementPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/library"
           element={

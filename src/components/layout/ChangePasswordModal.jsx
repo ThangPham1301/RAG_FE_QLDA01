@@ -74,6 +74,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
       setTimeout(() => {
         onSuccess?.()
         onClose()
+        window.location.replace('/login')
       }, 1500)
     } catch (err) {
       const errorData = err.response?.data || {}
@@ -185,7 +186,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
           {/* Success Message */}
           {success && (
             <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-              ✓ Password changed successfully!
+              Password changed successfully. Signing you out everywhere...
             </div>
           )}
 
