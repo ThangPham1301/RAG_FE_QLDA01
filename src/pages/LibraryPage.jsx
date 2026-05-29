@@ -53,6 +53,15 @@ function LibraryPage() {
         loadDocuments()
     }, [loadDocuments])
 
+    useEffect(() => {
+        window.addEventListener('realtime:library', loadDocuments)
+        window.addEventListener('realtime:document', loadDocuments)
+        return () => {
+            window.removeEventListener('realtime:library', loadDocuments)
+            window.removeEventListener('realtime:document', loadDocuments)
+        }
+    }, [loadDocuments])
+
     const submitShare = async () => {
         if (!shareDoc || !shareEmail.trim()) return
         try {

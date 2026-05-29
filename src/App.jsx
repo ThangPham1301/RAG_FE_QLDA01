@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { RealtimeProvider } from './context/RealtimeContext'
 import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute'
 import AccountPage from './pages/AccountPage'
 import ActivityPage from './pages/ActivityPage'
@@ -16,7 +17,8 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 function App() {
   return (
     <AuthProvider>
-      <Routes>
+      <RealtimeProvider>
+        <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Public routes - redirect to dashboard if already authenticated */}
@@ -57,7 +59,7 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute adminOnly>
               <DashboardPage />
             </ProtectedRoute>
           }
@@ -66,7 +68,7 @@ function App() {
         <Route
           path="/library"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute userOnly>
               <LibraryPage />
             </ProtectedRoute>
           }
@@ -74,7 +76,7 @@ function App() {
         <Route
           path="/team"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute userOnly>
               <TeamPage />
             </ProtectedRoute>
           }
@@ -82,7 +84,7 @@ function App() {
         <Route
           path="/document/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute userOnly>
               <DocumentDetailPage />
             </ProtectedRoute>
           }
@@ -90,7 +92,7 @@ function App() {
         <Route
           path="/test/document/1"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute userOnly>
               <DocumentDetailPage />
             </ProtectedRoute>
           }
@@ -98,7 +100,7 @@ function App() {
         <Route
           path="/chat"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute userOnly>
               <ChatPage />
             </ProtectedRoute>
           }
@@ -114,7 +116,7 @@ function App() {
         <Route
           path="/activity"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute userOnly>
               <ActivityPage />
             </ProtectedRoute>
           }
@@ -122,7 +124,8 @@ function App() {
 
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+        </Routes>
+      </RealtimeProvider>
     </AuthProvider>
   )
 }

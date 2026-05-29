@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import PrimaryButton from '../ui/PrimaryButton'
 import TextInput from '../ui/TextInput'
 import { useAuth } from '../../context/AuthContext'
+import { isAdminUser } from '../ProtectedRoute'
 import { googleLogin, login } from '../../services/authService'
 
 function LoginPanel() {
@@ -37,7 +38,7 @@ function LoginPanel() {
       try {
         const response = await googleLogin(credentialResponse.credential)
         authLogin(response.user, response.tokens)
-        navigate('/dashboard', { replace: true })
+        navigate(isAdminUser(response.user) ? '/dashboard' : '/library', { replace: true })
       } catch (err) {
         const errorData = err.response?.data || {}
         const errorMessage = errorData.detail || errorData.error || err.message || 'Google login failed'
@@ -137,8 +138,8 @@ function LoginPanel() {
       authLogin(response.user, response.tokens)
       
       console.log('✨ [LOGIN] authLogin() completed')
-      console.log('🚀 [LOGIN] Navigating to /dashboard...')
-      navigate('/dashboard')
+      console.log('🚀 [LOGIN] Navigating after role check...')
+      navigate(isAdminUser(response.user) ? '/dashboard' : '/library')
       console.log('✅ [LOGIN] Navigate called (should redirect now)')
     } catch (err) {
       console.error('❌ [LOGIN] Error during login:', err)

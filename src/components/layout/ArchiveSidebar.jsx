@@ -1,6 +1,8 @@
 import { createElement } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAppSettings } from '../../context/AppSettingsContext'
+import { useAuth } from '../../context/AuthContext'
+import { isAdminUser } from '../ProtectedRoute'
 import {
     BookOpen,
     LayoutDashboard,
@@ -19,6 +21,10 @@ const NAV_ITEMS = [
 
 function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' }) {
     const { t } = useAppSettings()
+    const { user } = useAuth()
+    const navItems = isAdminUser(user)
+        ? NAV_ITEMS.filter((item) => ['dashboard', 'settings'].includes(item.id))
+        : NAV_ITEMS.filter((item) => item.id !== 'dashboard')
 
     return (
         <aside className="flex w-full max-w-64 flex-col border-r border-slate-800/70 bg-slate-950/95 py-6 text-slate-100 shadow-[0_24px_80px_rgba(2,6,23,0.35)] backdrop-blur-xl">
@@ -33,7 +39,7 @@ function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' })
             </div>
 
             <nav className="mt-6 space-y-1 px-3">
-                {NAV_ITEMS.map(({ id, label, icon: Icon, to }) => {
+                {navItems.map(({ id, label, icon: Icon, to }) => {
                     const fallbackActive = label === activeItem
                     const displayLabel = t.nav[id] || label
 

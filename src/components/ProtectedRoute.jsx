@@ -1,59 +1,48 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-/**
- * Protected Route component
- * Redirects to login if user is not authenticated
- */
-export const ProtectedRoute = ({ children }) => {
+export const isAdminUser = (user) => Boolean(user?.role === 'admin' || user?.is_staff || user?.is_superuser)
+
+const LoadingScreen = () => (
+  <div className="flex h-screen items-center justify-center">
+    <div className="text-center">
+      <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-800" />
+      <p className="text-slate-600">Loading...</p>
+    </div>
+  </div>
+)
+
+export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false }) => {
   const { isAuthenticated, loading, user } = useAuth()
 
-  console.log('🔒 [ProtectedRoute] Checking auth status...')
-  console.log('   isAuthenticated:', isAuthenticated)
-  console.log('   loading:', loading)
-  console.log('   user:', user ? `✅ ${user.email}` : '❌ null (but may check localStorage)')
-
   if (loading) {
-    console.log('⏳ [ProtectedRoute] Still loading...')
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-800 mx-auto" />
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!isAuthenticated) {
-    console.log('❌ [ProtectedRoute] User not authenticated, redirecting to /login')
     return <Navigate to="/login" replace />
   }
 
-  console.log('✅ [ProtectedRoute] User authenticated, rendering children')
+  if (adminOnly && !isAdminUser(user)) {
+    return <Navigate to="/library" replace />
+  }
+
+  if (userOnly && isAdminUser(user)) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return children
 }
 
-/**
- * Public Route component
- * Redirects to dashboard if user is already authenticated
- */
 export const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading, user } = useAuth()
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-800 mx-auto" />
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={isAdminUser(user) ? '/dashboard' : '/library'} replace />
   }
 
   return children

@@ -45,6 +45,16 @@ function TeamPage() {
     loadData()
   }, [])
 
+  useEffect(() => {
+    const refresh = () => loadData()
+    window.addEventListener('realtime:team', refresh)
+    window.addEventListener('realtime:document', refresh)
+    return () => {
+      window.removeEventListener('realtime:team', refresh)
+      window.removeEventListener('realtime:document', refresh)
+    }
+  }, [])
+
   const createTeam = async () => {
     const name = teamName.trim()
     if (!name) return

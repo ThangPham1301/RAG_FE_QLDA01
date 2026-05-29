@@ -1,7 +1,7 @@
-import { Activity, Database, Files, FolderSync, ShieldAlert, TrendingUp, UploadCloud, Users } from 'lucide-react'
+import { Activity, Database, Files, FolderSync, Pin, ShieldAlert, Star, TrendingUp, UploadCloud, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import avatarProfile from '../assets/dashboard/avatar-profile.png'
-import { StatisticsAPI } from '../api/client'
+import { EvaluationsAPI, StatisticsAPI } from '../api/client'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
 import DashboardHeader from '../components/layout/DashboardHeader'
 import DashboardMetricsGrid from '../components/layout/DashboardMetricsGrid'
@@ -51,6 +51,9 @@ function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isExporting, setIsExporting] = useState(false)
     const [error, setError] = useState('')
+    const [evaluationStats, setEvaluationStats] = useState(null)
+    const [evaluations, setEvaluations] = useState([])
+    const [evaluationFilter, setEvaluationFilter] = useState({ rating: '', pinned: '' })
 
     useEffect(() => {
         let mounted = true
@@ -72,6 +75,72 @@ function DashboardPage() {
             mounted = false
         }
     }, [])
+
+    useEffect(() => {
+        let mounted = true
+        const params = {
+            ...(evaluationFilter.rating ? { rating: evaluationFilter.rating } : {}),
+            ...(evaluationFilter.pinned ? { pinned: evaluationFilter.pinned } : {}),
+        }
+        Promise.all([
+            EvaluationsAPI.stats(),
+            EvaluationsAPI.list(params),
+        ])
+            .then(([statsResponse, listResponse]) => {
+                if (!mounted) return
+                setEvaluationStats(statsResponse.data)
+                const data = listResponse.data?.results || listResponse.data || []
+                setEvaluations(data.slice(0, 8))
+            })
+            .catch((err) => {
+                console.error('Error loading evaluations:', err)
+            })
+        return () => {
+            mounted = false
+        }
+    }, [evaluationFilter])
+
+    const refreshEvaluations = async () => {
+        const params = {
+            ...(evaluationFilter.rating ? { rating: evaluationFilter.rating } : {}),
+            ...(evaluationFilter.pinned ? { pinned: evaluationFilter.pinned } : {}),
+        }
+        const [statsResponse, listResponse] = await Promise.all([
+            EvaluationsAPI.stats(),
+            EvaluationsAPI.list(params),
+        ])
+        setEvaluationStats(statsResponse.data)
+        const data = listResponse.data?.results || listResponse.data || []
+        setEvaluations(data.slice(0, 8))
+    }
+
+    useEffect(() => {
+        const refresh = () => {
+            refreshEvaluations()
+            StatisticsAPI.overview()
+                .then((response) => setStats(normalizeOverview(response.data)))
+                .catch((err) => console.error('Realtime dashboard refresh failed:', err))
+        }
+        window.addEventListener('realtime:evaluation', refresh)
+        window.addEventListener('realtime:document', refresh)
+        return () => {
+            window.removeEventListener('realtime:evaluation', refresh)
+            window.removeEventListener('realtime:document', refresh)
+        }
+    }, [evaluationFilter])
+
+    const togglePinEvaluation = async (evaluation) => {
+        try {
+            if (evaluation.is_pinned) {
+                await EvaluationsAPI.unpin(evaluation.id)
+            } else {
+                await EvaluationsAPI.pin(evaluation.id)
+            }
+            await refreshEvaluations()
+        } catch (err) {
+            console.error('Error pinning evaluation:', err)
+        }
+    }
 
     const handleExportReport = async (format = 'csv') => {
         setIsExporting(true)
@@ -177,6 +246,81 @@ function DashboardPage() {
                                 </div>
                             )}
                             <DashboardMetricsGrid metrics={metrics} isLoading={isLoading} />
+                            <section className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
+                                <div className="flex flex-wrap items-start justify-between gap-4">
+                                    <div>
+                                        <h2 className="font-['Manrope'] text-xl font-extrabold text-slate-900">Conversation Evaluations</h2>
+                                        <p className="mt-1 text-sm text-slate-600">Latest official evaluations from user chat sessions.</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={evaluationFilter.rating}
+                                            onChange={(event) => setEvaluationFilter((current) => ({ ...current, rating: event.target.value }))}
+                                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none"
+                                        >
+                                            <option value="">All ratings</option>
+                                            {[5, 4, 3, 2, 1].map((value) => (
+                                                <option key={value} value={value}>{value} stars</option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            value={evaluationFilter.pinned}
+                                            onChange={(event) => setEvaluationFilter((current) => ({ ...current, pinned: event.target.value }))}
+                                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none"
+                                        >
+                                            <option value="">All</option>
+                                            <option value="true">Pinned</option>
+                                            <option value="false">Unpinned</option>
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3 text-center">
+                                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                                            <div className="text-xs font-semibold uppercase text-slate-400">Total</div>
+                                            <div className="mt-1 text-2xl font-extrabold text-slate-900">{evaluationStats?.total ?? 0}</div>
+                                        </div>
+                                        <div className="rounded-xl bg-amber-50 px-4 py-3">
+                                            <div className="text-xs font-semibold uppercase text-amber-600">Average</div>
+                                            <div className="mt-1 text-2xl font-extrabold text-amber-700">{evaluationStats?.average_rating ?? 0}</div>
+                                        </div>
+                                        <div className="rounded-xl bg-blue-50 px-4 py-3">
+                                            <div className="text-xs font-semibold uppercase text-blue-600">Pinned</div>
+                                            <div className="mt-1 text-2xl font-extrabold text-blue-800">{evaluationStats?.pinned ?? 0}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
+                                    <div className="grid grid-cols-[1.2fr_1fr_110px_100px] gap-3 bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                                        <span>Conversation</span>
+                                        <span>User</span>
+                                        <span>Rating</span>
+                                        <span>Pin</span>
+                                    </div>
+                                    {evaluations.length === 0 ? (
+                                        <div className="px-4 py-6 text-sm text-slate-500">No evaluations yet.</div>
+                                    ) : evaluations.map((item) => (
+                                        <div key={item.id} className="grid grid-cols-[1.2fr_1fr_110px_100px] gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-700">
+                                            <div className="min-w-0">
+                                                <div className="truncate font-semibold text-slate-900">{item.chat_title || `Session #${item.chat_session}`}</div>
+                                                <div className="truncate text-xs text-slate-500">{item.project_name || 'No project'}{item.comment ? ` - ${item.comment}` : ''}</div>
+                                            </div>
+                                            <div className="truncate">{item.user_email}</div>
+                                            <div className="flex items-center gap-1 font-semibold text-amber-600">
+                                                <Star size={14} fill="currentColor" />
+                                                {item.rating}/5
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => togglePinEvaluation(item)}
+                                                className={`inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${item.is_pinned ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                            >
+                                                <Pin size={13} fill={item.is_pinned ? 'currentColor' : 'none'} />
+                                                {item.is_pinned ? 'Pinned' : 'Pin'}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
                             <DashboardChartsPanel data={stats?.chartData || []} isLoading={isLoading} />
                         </div>
                     </div>

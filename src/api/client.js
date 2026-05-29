@@ -108,6 +108,8 @@ export const ChatAPI = {
   updateSession: (id, payload) => client.patch(`/chat/sessions/${id}/`, payload),
   delete: (id) => client.delete(`/chat/sessions/${id}/`),
   getMessages: (sessionId) => client.get(`/chat/sessions/${sessionId}/messages/`),
+  getEvaluation: (sessionId) => client.get('/chat/evaluations/', { params: { chat_session: sessionId } }),
+  saveEvaluation: (payload) => client.post('/chat/evaluations/', payload),
 }
 
 
@@ -164,12 +166,24 @@ export const TeamsAPI = {
   sharedLibrary: () => client.get('/library/shared/'),
 }
 
+export const NotificationsAPI = {
+  list: () => client.get('/notifications/'),
+  markRead: (id) => client.post(`/notifications/${id}/mark-read/`),
+}
+
 export const StatisticsAPI = {
   overview: (params = {}) => client.get('/projects/statistics/', { params }),
   export: (params = {}, format = 'csv') => client.get('/dashboard/export/', {
     params: { ...params, format },
     responseType: format === 'json' ? 'json' : 'blob',
   }),
+}
+
+export const EvaluationsAPI = {
+  list: (params = {}) => client.get('/chat/evaluations/', { params }),
+  stats: () => client.get('/chat/evaluations/stats/'),
+  pin: (id) => client.post(`/chat/evaluations/${id}/pin/`),
+  unpin: (id) => client.post(`/chat/evaluations/${id}/unpin/`),
 }
 
 export default client

@@ -14,7 +14,9 @@ import {
   Users,
 } from 'lucide-react'
 import { ChatAPI, DocumentsAPI, ProjectsAPI, TeamsAPI } from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 import { useChat } from '../../context/useChat'
+import { isAdminUser } from '../ProtectedRoute'
 import CreateProjectModal from './CreateProjectModal'
 import TeamDocumentPickerModal from './TeamDocumentPickerModal'
 
@@ -27,6 +29,8 @@ const NAV_ITEMS = [
 ]
 
 function ChatSidebar() {
+  const { user } = useAuth()
+  const isAdmin = isAdminUser(user)
   const {
     projects,
     selectedProject,
@@ -96,7 +100,7 @@ function ChatSidebar() {
         return [selectedChat, ...prev]
       })
     }
-  }, [selectedChat?.id, selectedProject?.id, sessions])
+  }, [selectedChat?.id, selectedProject?.id])
 
   useEffect(() => {
     const sessionId = selectedChat?.id
@@ -306,8 +310,21 @@ function ChatSidebar() {
     }
   }
 
-  const navBeforeChat = NAV_ITEMS.slice(0, 2)
-  const navAfterChat = NAV_ITEMS.slice(3)
+  useEffect(() => {
+    const refresh = () => refreshSelectedChatDocuments()
+    window.addEventListener('realtime:document', refresh)
+    window.addEventListener('realtime:chat', refresh)
+    return () => {
+      window.removeEventListener('realtime:document', refresh)
+      window.removeEventListener('realtime:chat', refresh)
+    }
+  }, [selectedChat?.id])
+
+  const visibleNavItems = isAdmin
+    ? NAV_ITEMS.filter((item) => ['/dashboard', '/account'].includes(item.to))
+    : NAV_ITEMS.filter((item) => item.to !== '/dashboard')
+  const navBeforeChat = visibleNavItems.filter((item) => ['/dashboard', '/library'].includes(item.to))
+  const navAfterChat = visibleNavItems.filter((item) => !['/dashboard', '/library'].includes(item.to))
 
   const renderProjectTree = () => {
     if (!projects || projects.length === 0) {

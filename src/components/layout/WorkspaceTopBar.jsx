@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import defaultAvatar from '../../assets/account/topbar-avatar.png'
 import { useAppSettings } from '../../context/AppSettingsContext'
 import { useAuth } from '../../context/AuthContext'
+import { useRealtime } from '../../context/RealtimeContext'
 
 function WorkspaceTopBar({
     profileName = 'Dr. Aris Thorne',
@@ -11,10 +12,13 @@ function WorkspaceTopBar({
 }) {
     const navigate = useNavigate()
     const { logout, user } = useAuth()
+    const { connected, notifications, unreadCount, markNotificationRead } = useRealtime()
     const { darkMode, language, setDarkMode, setLanguage, t } = useAppSettings()
     const [isLoggingOut, setIsLoggingOut] = useState(false)
     const [menuOpen, setMenuOpen] = useState(false)
+    const [notificationsOpen, setNotificationsOpen] = useState(false)
     const menuRef = useRef(null)
+    const notificationsRef = useRef(null)
 
     const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim()
     const displayName = fullName || user?.username || user?.email || profileName
@@ -24,6 +28,9 @@ function WorkspaceTopBar({
         const handlePointerDown = (event) => {
             if (!menuRef.current?.contains(event.target)) {
                 setMenuOpen(false)
+            }
+            if (!notificationsRef.current?.contains(event.target)) {
+                setNotificationsOpen(false)
             }
         }
 
@@ -67,13 +74,55 @@ function WorkspaceTopBar({
 
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 text-slate-500">
-                    <button
-                        type="button"
-                        className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
-                        aria-label="Notifications"
-                    >
-                        <Bell size={16} />
-                    </button>
+                    <div ref={notificationsRef} className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setNotificationsOpen((open) => !open)}
+                            className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
+                            aria-label="Notifications"
+                            title={connected ? 'Realtime connected' : 'Realtime disconnected'}
+                        >
+                            <Bell size={16} />
+                            {unreadCount > 0 && (
+                                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+
+                        {notificationsOpen && (
+                            <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-96 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
+                                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                                    <div>
+                                        <p className="font-['Manrope'] text-sm font-extrabold text-slate-900">Notifications</p>
+                                        <p className="text-xs text-slate-500">{connected ? 'Realtime connected' : 'Reconnecting...'}</p>
+                                    </div>
+                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{unreadCount} unread</span>
+                                </div>
+
+                                <div className="max-h-96 overflow-y-auto p-2">
+                                    {notifications.length === 0 ? (
+                                        <div className="px-4 py-8 text-center text-sm text-slate-500">No notifications.</div>
+                                    ) : notifications.slice(0, 12).map((item) => (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => markNotificationRead(item.id)}
+                                            className={`mb-1 w-full rounded-xl px-3 py-2.5 text-left transition ${item.is_read ? 'bg-white hover:bg-slate-50' : 'bg-blue-50 hover:bg-blue-100'}`}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-semibold text-slate-900">{item.title}</p>
+                                                    <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{item.message}</p>
+                                                </div>
+                                                {!item.is_read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-600" />}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <button
                         type="button"
                         className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
