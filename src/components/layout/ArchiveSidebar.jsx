@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAppSettings } from '../../context/AppSettingsContext'
 import { useAuth } from '../../context/AuthContext'
-import { isAdminUser } from '../ProtectedRoute'
+import { isAdminUser, isSuperAdminUser } from '../ProtectedRoute'
 import {
     BookOpen,
     LayoutDashboard,
@@ -24,12 +24,16 @@ const NAV_ITEMS = [
 function ArchiveSidebar({ activeItem = 'Dashboard', ctaLabel = 'NEW RESEARCH' }) {
     const { t } = useAppSettings()
     const { user } = useAuth()
-    const navItems = isAdminUser(user)
+    const isAdmin = isAdminUser(user)
+    const isSuperAdmin = isSuperAdminUser(user)
+    const navItems = isSuperAdmin
         ? NAV_ITEMS.filter((item) => ['dashboard', 'users', 'settings'].includes(item.id))
-        : NAV_ITEMS.filter((item) => item.id !== 'dashboard')
+        : isAdmin
+            ? NAV_ITEMS.filter((item) => ['dashboard', 'library', 'chat', 'team', 'settings'].includes(item.id))
+            : NAV_ITEMS.filter((item) => !['dashboard', 'users'].includes(item.id))
 
     return (
-        <aside className="flex w-full max-w-64 flex-col border-r border-slate-800/70 bg-slate-950/95 py-6 text-slate-100 shadow-[0_24px_80px_rgba(2,6,23,0.35)] backdrop-blur-xl">
+        <aside className="sticky left-0 top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-slate-800/70 bg-slate-950/95 py-6 text-slate-100 shadow-[0_24px_80px_rgba(2,6,23,0.35)] backdrop-blur-xl">
             <div className="mx-3 flex items-center gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4 shadow-[0_12px_30px_rgba(2,6,23,0.18)]">
                 <div className="grid h-11 w-11 place-items-center rounded-2xl bg-linear-to-br from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
                     <span className="font-['Manrope'] text-sm font-extrabold">S</span>

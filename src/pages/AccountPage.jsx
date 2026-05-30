@@ -3,6 +3,7 @@ import topbarAvatar from '../assets/account/topbar-avatar.png'
 import AccountHeader from '../components/layout/AccountHeader'
 import AccountProfileCard from '../components/layout/AccountProfileCard'
 import AccountSecurityPanel from '../components/layout/AccountSecurityPanel'
+import AccountActivityLogPanel from '../components/layout/AccountActivityLogPanel'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
 import WorkspaceTopBar from '../components/layout/WorkspaceTopBar'
 import EditProfileModal from '../components/layout/EditProfileModal'
@@ -36,6 +37,7 @@ function AccountPage() {
                                 />
                                 <AccountSecurityPanel onChangePasswordClick={() => setChangePasswordOpen(true)} />
                             </div>
+                            <AccountActivityLogPanel />
                         </div>
                     </div>
                 </div>

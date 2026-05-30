@@ -198,4 +198,8 @@ export const AdminUsersAPI = {
   listPermissions: () => client.get('/auth/admin/permissions'),
 }
 
+export const AccountLogsAPI = {
+  mine: () => client.get('/auth/me/logs'),
+}
+
 export default client
