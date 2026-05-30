@@ -2,15 +2,54 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import PrimaryButton from '../ui/PrimaryButton'
-import FormInputField from '../ui/FormInputField'
+import TextInput from '../ui/TextInput'
 import { useAuth } from '../../context/AuthContext'
 import { signUp } from '../../services/authService'
 import { validatePassword, getPasswordStrength } from '../../utils/auth'
 
+function PasswordInput({
+  label,
+  value,
+  onChange,
+  error,
+  placeholder,
+  visible,
+  onToggle,
+  toggleLabel,
+}) {
+  return (
+    <div className="block space-y-2">
+      <label className="block text-xs font-bold tracking-wide text-slate-600">
+        {label}<span className="text-red-500">*</span>
+      </label>
+      <div className={`flex items-center rounded-lg border ${error ? 'border-red-300' : 'border-slate-200'} bg-white px-4 py-3 shadow-[0_1px_0_rgba(148,163,184,0.2)]`}>
+        <input
+          type={visible ? 'text' : 'password'}
+          placeholder={placeholder}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-blue-800"
+          aria-label={toggleLabel}
+        >
+          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
+      {error && (
+        <p className="text-xs text-red-600">{error}</p>
+      )}
+    </div>
+  )
+}
+
 function RegisterFormPanel() {
   const navigate = useNavigate()
   const { setError: setAuthError } = useAuth()
-  
+
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -20,6 +59,7 @@ function RegisterFormPanel() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
   const [errors, setErrors] = useState({})
 
   const passwordStrength = getPasswordStrength(password)
@@ -47,9 +87,10 @@ function RegisterFormPanel() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSignUp = async (e) => {
-    e.preventDefault()
+  const handleSignUp = async (event) => {
+    event.preventDefault()
     setError(null)
+    setSuccess(null)
 
     if (!validateForm()) {
       return
@@ -65,10 +106,10 @@ function RegisterFormPanel() {
         passwordConfirm,
       })
 
-      // Show verification message
-      setError(null)
-      alert(`Verification email sent to ${email}. Please check your inbox.`)
-      navigate('/login')
+      setSuccess(`Verification email sent to ${email}. Please check your inbox before signing in.`)
+      setTimeout(() => {
+        navigate('/login')
+      }, 1600)
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Sign up failed'
       setError(errorMessage)
@@ -79,136 +120,115 @@ function RegisterFormPanel() {
   }
 
   return (
-    <section className="w-full flex-1 px-5 py-8 md:px-10 md:py-12 lg:px-16 lg:py-16">
-      <div className="mx-auto max-w-[460px]">
-        <header className="space-y-2">
-          <p className="text-xs font-bold tracking-wide text-blue-800">
-            SYSTEM ENTRANCE
-          </p>
-          <h1 className="font-['Manrope'] text-4xl font-extrabold text-slate-900">
-            Create Researcher Account
-          </h1>
-        </header>
+    <section className="w-full max-w-md rounded-2xl border border-white/40 bg-white/75 p-10 shadow-[0_28px_64px_rgba(15,23,42,0.14)] backdrop-blur-xl">
+      <header className="space-y-1">
+        <h3 className="font-['Manrope'] text-2xl font-bold text-slate-900">
+          Create your workspace account
+        </h3>
+        <p className="text-sm text-slate-600">
+          Join the document workspace to manage archives, summaries, and administrative Q&A.
+        </p>
+      </header>
 
-        <form onSubmit={handleSignUp} className="mt-8 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <FormInputField
-              label="FIRST NAME"
-              placeholder="John"
-              value={firstName}
-              onChange={setFirstName}
-              error={errors.firstName}
-              trailingMarker={!!firstName}
-            />
-            <FormInputField
-              label="LAST NAME"
-              placeholder="Doe"
-              value={lastName}
-              onChange={setLastName}
-              error={errors.lastName}
-              trailingMarker={!!lastName}
-            />
-          </div>
-
-          <FormInputField
-            label="EMAIL"
-            type="email"
-            placeholder="name@organization.edu"
-            value={email}
-            onChange={setEmail}
-            error={errors.email}
-            trailingMarker={!!email}
+      <form onSubmit={handleSignUp} className="mt-8 space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextInput
+            label="FIRST NAME"
+            placeholder="John"
+            value={firstName}
+            onChange={setFirstName}
+            error={errors.firstName}
+            required
           />
+          <TextInput
+            label="LAST NAME"
+            placeholder="Doe"
+            value={lastName}
+            onChange={setLastName}
+            error={errors.lastName}
+            required
+          />
+        </div>
 
-          <div className="space-y-3">
-            <FormInputField
-              label="PASSWORD"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••••••"
-              value={password}
-              onChange={setPassword}
-              error={errors.password}
-              trailingMarker={passwordValid}
-              trailingAction={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((visible) => !visible)}
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-white/70 hover:text-blue-800"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              }
-            />
-            {password && (
-              <div className="space-y-2">
-                <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200">
-                  <div
-                    className={`h-full transition-all ${
-                      passwordStrength < 50
-                        ? 'bg-red-500'
-                        : passwordStrength < 75
-                          ? 'bg-yellow-500'
-                          : 'bg-green-500'
-                    }`}
-                    style={{ width: `${passwordStrength}%` }}
-                  />
-                </div>
-                <p className="text-xs text-slate-500">
-                  Password strength: {passwordStrength < 50 ? 'Weak' : passwordStrength < 75 ? 'Medium' : 'Strong'}
-                </p>
+        <TextInput
+          label="EMAIL ADDRESS"
+          type="email"
+          placeholder="name@organization.com"
+          value={email}
+          onChange={setEmail}
+          error={errors.email}
+          required
+        />
+
+        <div className="space-y-3">
+          <PasswordInput
+            label="PASSWORD"
+            placeholder="Enter your password"
+            value={password}
+            onChange={setPassword}
+            error={errors.password}
+            visible={showPassword}
+            onToggle={() => setShowPassword((visible) => !visible)}
+            toggleLabel={showPassword ? 'Hide password' : 'Show password'}
+          />
+          {password && (
+            <div className="space-y-2">
+              <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className={`h-full transition-all ${
+                    passwordStrength < 50
+                      ? 'bg-red-500'
+                      : passwordStrength < 75
+                        ? 'bg-yellow-500'
+                        : 'bg-green-500'
+                  }`}
+                  style={{ width: `${passwordStrength}%` }}
+                />
               </div>
-            )}
-          </div>
-
-          <FormInputField
-            label="CONFIRM PASSWORD"
-            type={showPasswordConfirm ? 'text' : 'password'}
-            placeholder="••••••••••••"
-            value={passwordConfirm}
-            onChange={setPasswordConfirm}
-            error={errors.passwordConfirm}
-            trailingMarker={passwordMatch}
-            trailingAction={
-              <button
-                type="button"
-                onClick={() => setShowPasswordConfirm((visible) => !visible)}
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-white/70 hover:text-blue-800"
-                aria-label={showPasswordConfirm ? 'Hide confirm password' : 'Show confirm password'}
-              >
-                {showPasswordConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            }
-          />
-
-          {error && (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {error}
+              <p className="text-xs text-slate-500">
+                Password strength: {passwordStrength < 50 ? 'Weak' : passwordStrength < 75 ? 'Medium' : 'Strong'}
+              </p>
             </div>
           )}
+        </div>
 
-          <PrimaryButton
-            type="submit"
-            loading={loading}
-            className="py-4 text-[13px]"
-          >
-            INITIALIZE ACCOUNT
-          </PrimaryButton>
-        </form>
+        <PasswordInput
+          label="CONFIRM PASSWORD"
+          placeholder="Confirm your password"
+          value={passwordConfirm}
+          onChange={setPasswordConfirm}
+          error={errors.passwordConfirm}
+          visible={showPasswordConfirm}
+          onToggle={() => setShowPasswordConfirm((visible) => !visible)}
+          toggleLabel={showPasswordConfirm ? 'Hide confirm password' : 'Show confirm password'}
+        />
 
-        <footer className="mt-10 space-y-5 text-center">
-          <p className="text-sm text-slate-600">
-            Already a member of the archive?{' '}
-            <Link to="/login" className="font-bold text-blue-800">
-              Sign In
-            </Link>
-          </p>
-          <div className="flex justify-center gap-8 text-xs font-bold text-slate-600">
-            <button type="button">SUPPORT</button>
-            <button type="button">ENGLISH (US)</button>
+        {error && (
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {error}
           </div>
-        </footer>
-      </div>
+        )}
+
+        {success && (
+          <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+            {success}
+          </div>
+        )}
+
+        <PrimaryButton type="submit" loading={loading}>
+          CREATE ACCOUNT
+        </PrimaryButton>
+      </form>
+
+      <p className="mt-8 text-center text-sm text-slate-600">
+        Already have an account?{' '}
+        <Link
+          to="/login"
+          className="font-semibold text-blue-900 transition hover:text-blue-700"
+        >
+          Sign in
+        </Link>
+      </p>
     </section>
   )
 }

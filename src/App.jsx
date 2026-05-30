@@ -11,6 +11,7 @@ import DocumentDetailPage from './pages/DocumentDetailPage'
 import LibraryPage from './pages/LibraryPage'
 import UserManagementPage from './pages/UserManagementPage'
 import TeamPage from './pages/TeamPage'
+import UserManagementPage from './pages/UserManagementPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -62,6 +63,14 @@ function App() {
           element={
             <ProtectedRoute adminOnly>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute adminOnly>
+              <UserManagementPage />
             </ProtectedRoute>
           }
         />

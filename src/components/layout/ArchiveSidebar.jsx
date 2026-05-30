@@ -8,12 +8,13 @@ import {
     LayoutDashboard,
     MessageSquare,
     Settings,
+    UserCog,
     Users,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
-    { id: 'users', label: 'Users', icon: Users, to: '/users' },
+    { id: 'users', label: 'User Management', icon: UserCog, to: '/admin/users' },
     { id: 'library', label: 'Library', icon: BookOpen, to: '/library' },
     { id: 'chat', label: 'Chat', icon: MessageSquare, to: '/chat' },
     { id: 'team', label: 'Team', icon: Users, to: '/team' },

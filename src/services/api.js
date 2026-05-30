@@ -1,7 +1,7 @@
 import axios from 'axios'
+import { clearAuth } from '../utils/auth'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
-let isRedirectingToLogin = false
 
 // Create axios instance
 const apiClient = axios.create({
@@ -51,17 +51,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       } catch (refreshError) {
         // Refresh failed, logout user
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-
-        // Avoid hard-reload loops when we're already on auth pages.
-        const path = window.location.pathname
-        const isAuthRoute = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/verify-email'
-        if (!isAuthRoute && !isRedirectingToLogin) {
-          isRedirectingToLogin = true
-          window.location.replace('/login')
-        }
+        clearAuth({ notify: true, reason: 'session_expired' })
         return Promise.reject(refreshError)
       }
     }

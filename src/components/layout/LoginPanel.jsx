@@ -4,35 +4,35 @@ import PrimaryButton from '../ui/PrimaryButton'
 import TextInput from '../ui/TextInput'
 import { useAuth } from '../../context/AuthContext'
 import { isAdminUser } from '../ProtectedRoute'
-import { googleLogin, login, requestOTP, verifyOTP } from '../../services/authService'
+import { googleLogin, login, verifyLoginOTP } from '../../services/authService'
 
 function LoginPanel() {
   const navigate = useNavigate()
   const { login: authLogin, setError: setAuthError } = useAuth()
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-
+  
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [otp, setOtp] = useState('')
-  const [pendingEmail, setPendingEmail] = useState('')
-  const [otpStep, setOtpStep] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [resendLoading, setResendLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [loginStep, setLoginStep] = useState('credentials')
+  const [pendingEmail, setPendingEmail] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [otp, setOtp] = useState('')
   const googleButtonRef = useRef(null)
   const googleConfigured = Boolean(googleClientId && !googleClientId.startsWith('your-'))
 
-  const finishLogin = useCallback((response) => {
+  const completeLogin = useCallback((response) => {
     authLogin(response.user, response.tokens)
     navigate(isAdminUser(response.user) ? '/dashboard' : '/library', { replace: true })
   }, [authLogin, navigate])
 
-  const beginOtpStep = useCallback((response) => {
+  const startTwoFactorStep = useCallback((response) => {
     setPendingEmail(response.email || email)
-    setEmail(response.email || email)
+    setChallengeToken(response.challenge_token || '')
     setOtp('')
-    setOtpStep(true)
+    setLoginStep('otp')
     setError(null)
   }, [email])
 
@@ -55,10 +55,10 @@ function LoginPanel() {
       try {
         const response = await googleLogin(credentialResponse.credential)
         if (response.requires_2fa) {
-          beginOtpStep(response)
+          startTwoFactorStep(response)
           return
         }
-        finishLogin(response)
+        completeLogin(response)
       } catch (err) {
         const errorData = err.response?.data || {}
         const errorMessage = errorData.detail || errorData.error || err.message || 'Google login failed'
@@ -117,10 +117,10 @@ function LoginPanel() {
       cancelled = true
       script.onload = null
     }
-  }, [beginOtpStep, finishLogin, googleClientId, googleConfigured, setAuthError])
+  }, [completeLogin, googleClientId, googleConfigured, setAuthError, startTwoFactorStep])
 
-  const handleLogin = async (event) => {
-    event.preventDefault()
+  const handleLogin = async (e) => {
+    e.preventDefault()
     setError(null)
 
     if (!email || !password) {
@@ -129,31 +129,88 @@ function LoginPanel() {
     }
 
     setLoading(true)
+    console.log('🔄 [LOGIN] Starting login process...')
+    console.log('📧 Email:', email)
 
     try {
+      console.log('📡 [LOGIN] Calling authService.login()...')
       const response = await login(email, password)
+
       if (response.requires_2fa) {
-        beginOtpStep(response)
+        startTwoFactorStep(response)
         return
       }
-      finishLogin(response)
-    } catch (err) {
-      const errorData = err.response?.data || {}
-      let errorMessage = errorData.detail || errorData.error || err.message || 'Login failed'
+      
+      console.log('✅ [LOGIN] Login response received:')
+      console.log('   Message:', response.message)
+      console.log('   User:', response.user)
+      console.log('   Tokens:', {
+        access: response.tokens?.access ? '✅ Present' : '❌ Missing',
+        refresh: response.tokens?.refresh ? '✅ Present' : '❌ Missing',
+      })
 
-      if (errorData.code === 'email_not_verified') {
-        errorMessage = 'Tai khoan chua xac thuc email. He thong da gui lai email xac thuc, vui long kiem tra hop thu.'
+      // Check localStorage after login
+      const storedAccess = localStorage.getItem('accessToken')
+      const storedRefresh = localStorage.getItem('refreshToken')
+      const storedUser = localStorage.getItem('user')
+      
+      console.log('💾 [LOGIN] localStorage after login:')
+      console.log('   accessToken:', storedAccess ? '✅ Saved (' + storedAccess.substring(0, 20) + '...)' : '❌ Not saved')
+      console.log('   refreshToken:', storedRefresh ? '✅ Saved (' + storedRefresh.substring(0, 20) + '...)' : '❌ Not saved')
+      console.log('   user:', storedUser ? '✅ Saved' : '❌ Not saved')
+
+      console.log('🔐 [LOGIN] Calling authLogin() from context...')
+      completeLogin(response)
+      
+      console.log('✨ [LOGIN] authLogin() completed')
+      console.log('🚀 [LOGIN] Navigating after role check...')
+      console.log('✅ [LOGIN] Navigate called (should redirect now)')
+    } catch (err) {
+      console.error('❌ [LOGIN] Error during login:', err)
+      console.error('   Response status:', err.response?.status)
+      console.error('   Response data:', err.response?.data)
+      console.error('   Error message:', err.message)
+
+      // Comprehensive error handling for different formats
+      const errorData = err.response?.data || {}
+      let errorMessage = 'Login failed'
+
+      // Priority: detail > first field error > generic message
+      if (errorData.detail) {
+        errorMessage = errorData.detail
+      } else if (errorData.email?.[0]) {
+        errorMessage = errorData.email[0]
+      } else if (errorData.password?.[0]) {
+        errorMessage = errorData.password[0]
+      } else if (err.message) {
+        errorMessage = err.message
       }
 
+      // Handle specific error cases
+      if (errorData.code === 'email_not_verified') {
+        errorMessage = 'Tài khoản chưa xác thực email. Hệ thống đã gửi lại email xác thực, vui lòng kiểm tra hộp thư và xác nhận.'
+      }
+
+      if (errorMessage.includes('Email not verified')) {
+        errorMessage = 'Please verify your email before logging in. Check your inbox for the verification link.'
+      }
+
+      console.error('📢 [LOGIN] Setting error message:', errorMessage)
       setError(errorMessage)
       setAuthError(errorMessage)
     } finally {
       setLoading(false)
+      console.log('⏹️  [LOGIN] Login process finished')
     }
   }
 
-  const handleVerifyOtp = async (event) => {
-    event.preventDefault()
+  const handleForgotPassword = () => {
+    // TODO: Implement forgot password flow
+    navigate('/forgot-password')
+  }
+
+  const handleVerifyLoginOTP = async (e) => {
+    e.preventDefault()
     setError(null)
 
     if (!otp || otp.length !== 6) {
@@ -164,11 +221,11 @@ function LoginPanel() {
     setLoading(true)
 
     try {
-      const response = await verifyOTP(pendingEmail || email, otp, 'login_2fa')
-      finishLogin(response)
+      const response = await verifyLoginOTP(pendingEmail, otp, challengeToken)
+      completeLogin(response)
     } catch (err) {
       const errorData = err.response?.data || {}
-      const errorMessage = errorData.detail || errorData.error || err.message || 'Invalid or expired OTP'
+      const errorMessage = errorData.detail || err.message || 'OTP verification failed'
       setError(errorMessage)
       setAuthError(errorMessage)
     } finally {
@@ -176,85 +233,82 @@ function LoginPanel() {
     }
   }
 
-  const handleResendOtp = async () => {
-    setError(null)
-    setResendLoading(true)
-
-    try {
-      await requestOTP(pendingEmail || email, 'login_2fa')
-      setError('A new OTP has been sent to your email.')
-    } catch (err) {
-      const errorData = err.response?.data || {}
-      setError(errorData.detail || errorData.error || err.message || 'Unable to resend OTP')
-    } finally {
-      setResendLoading(false)
-    }
-  }
-
-  const handleBackToPassword = () => {
-    setOtpStep(false)
+  const handleBackToCredentials = () => {
+    setLoginStep('credentials')
+    setChallengeToken('')
     setOtp('')
-    setPendingEmail('')
     setError(null)
-  }
-
-  const handleForgotPassword = () => {
-    navigate('/forgot-password')
   }
 
   return (
     <section className="w-full max-w-md rounded-2xl border border-white/40 bg-white/75 p-10 shadow-[0_28px_64px_rgba(15,23,42,0.14)] backdrop-blur-xl">
       <div className="space-y-1">
         <h3 className="font-['Manrope'] text-2xl font-bold text-slate-900">
-          {otpStep ? 'Verify your login' : 'Sign in to your workspace'}
+          Sign in to your workspace
         </h3>
         <p className="text-sm text-slate-600">
-          {otpStep
-            ? 'Enter the one-time password sent to your email.'
-            : 'Access your document archive, summarization tools, and administrative document Q&A.'}
+          Access your document archive, summarization tools, and administrative document Q&A.
         </p>
       </div>
 
-      <form onSubmit={otpStep ? handleVerifyOtp : handleLogin} className="mt-8 space-y-4">
-        {otpStep ? (
-          <>
-            <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-900">
-              OTP has been sent to <span className="font-semibold">{pendingEmail || email}</span>.
+      {loginStep === 'otp' ? (
+        <form onSubmit={handleVerifyLoginOTP} className="mt-8 space-y-4">
+          <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+            We sent a 6-digit verification code to {pendingEmail}. Enter it to finish signing in.
+          </div>
+
+          <TextInput
+            label="OTP CODE"
+            type="text"
+            placeholder="123456"
+            value={otp}
+            onChange={(value) => setOtp(value.replace(/\D/g, '').slice(0, 6))}
+            error={error}
+            required
+          />
+
+          {error && (
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {error}
             </div>
-            <TextInput
-              label="OTP CODE"
-              type="text"
-              placeholder="123456"
-              value={otp}
-              onChange={(value) => setOtp(value.replace(/\D/g, '').slice(0, 6))}
-              error={error && error.toLowerCase().includes('otp') ? error : null}
-              required
-            />
-          </>
-        ) : (
-          <>
-            <TextInput
-              label="EMAIL ADDRESS"
-              type="email"
-              placeholder="name@organization.com"
-              value={email}
-              onChange={setEmail}
-              required
-            />
-            <TextInput
-              label="PASSWORD"
-              type="password"
-              placeholder="password"
-              value={password}
-              onChange={setPassword}
-              helperAction={{
-                label: 'Forgot?',
-                onClick: handleForgotPassword,
-              }}
-              required
-            />
-          </>
-        )}
+          )}
+
+          <PrimaryButton type="submit" loading={loading}>
+            VERIFY AND SIGN IN
+          </PrimaryButton>
+
+          <button
+            type="button"
+            onClick={handleBackToCredentials}
+            className="w-full text-center text-sm font-semibold text-blue-900 transition hover:text-blue-700"
+          >
+            Back to email and password
+          </button>
+        </form>
+      ) : (
+      <form onSubmit={handleLogin} className="mt-8 space-y-4">
+        <TextInput
+          label="EMAIL ADDRESS"
+          type="email"
+          placeholder="name@organization.com"
+          value={email}
+          onChange={setEmail}
+          error={error && !password ? error : null}
+          required
+        />
+        <TextInput
+          label="PASSWORD"
+          type="password"
+          placeholder="••••••••"
+          value={password}
+          onChange={setPassword}
+          helperAction={{
+            label: 'Forgot?',
+            onClick: handleForgotPassword,
+          }}
+          error={error && email ? error : null}
+          required
+        />
 
         {error && (
           <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
@@ -264,56 +318,37 @@ function LoginPanel() {
 
         <div className="space-y-4">
           <PrimaryButton type="submit" loading={loading}>
-            {otpStep ? 'VERIFY OTP' : 'SIGN IN'}
+            SIGN IN
           </PrimaryButton>
 
-          {otpStep ? (
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-              <button type="button" onClick={handleBackToPassword} className="text-blue-800 hover:text-blue-700">
-                Back to password
-              </button>
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={resendLoading}
-                className="text-blue-800 hover:text-blue-700 disabled:opacity-50"
-              >
-                {resendLoading ? 'Sending...' : 'Resend OTP'}
-              </button>
+          <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.16em] text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>OR</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          {googleConfigured ? (
+            <div className="flex justify-center">
+              <div ref={googleButtonRef} className={googleLoading ? 'pointer-events-none opacity-60' : ''} />
             </div>
           ) : (
-            <>
-              <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.16em] text-slate-400">
-                <span className="h-px flex-1 bg-slate-200" />
-                <span>OR</span>
-                <span className="h-px flex-1 bg-slate-200" />
-              </div>
-
-              {googleConfigured ? (
-                <div className="flex justify-center">
-                  <div ref={googleButtonRef} className={googleLoading ? 'pointer-events-none opacity-60' : ''} />
-                </div>
-              ) : (
-                <div className="rounded-lg bg-amber-50 p-3 text-xs font-medium text-amber-800">
-                  Google login is not configured. Set VITE_GOOGLE_CLIENT_ID in the frontend environment.
-                </div>
-              )}
-            </>
+            <div className="rounded-lg bg-amber-50 p-3 text-xs font-medium text-amber-800">
+              Google login is not configured. Set VITE_GOOGLE_CLIENT_ID in the frontend environment.
+            </div>
           )}
         </div>
       </form>
-
-      {!otpStep && (
-        <p className="mt-8 text-center text-sm text-slate-600">
-          Don't have an account?{' '}
-          <Link
-            to="/register"
-            className="font-semibold text-blue-900 transition hover:text-blue-700"
-          >
-            Create account
-          </Link>
-        </p>
       )}
+
+      <p className="mt-8 text-center text-sm text-slate-600">
+        Don't have an account?{' '}
+        <Link
+          to="/register"
+          className="font-semibold text-blue-900 transition hover:text-blue-700"
+        >
+          Create account
+        </Link>
+      </p>
     </section>
   )
 }

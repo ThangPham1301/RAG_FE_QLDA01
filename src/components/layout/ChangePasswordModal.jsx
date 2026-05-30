@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { X, Eye, EyeOff } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import { changePassword } from '../../services/authService'
 
 function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     oldPassword: '',
     newPassword: '',
@@ -16,6 +18,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const requiresCurrentPassword = user?.has_usable_password ?? true
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -39,7 +42,11 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
     setLoading(true)
 
     // Validate
-    if (!formData.oldPassword || !formData.newPassword || !formData.newPasswordConfirm) {
+    if (
+      (requiresCurrentPassword && !formData.oldPassword) ||
+      !formData.newPassword ||
+      !formData.newPasswordConfirm
+    ) {
       setError('All fields are required')
       setLoading(false)
       return
@@ -59,7 +66,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
 
     try {
       await changePassword(
-        formData.oldPassword,
+        requiresCurrentPassword ? formData.oldPassword : '',
         formData.newPassword,
         formData.newPasswordConfirm
       )
@@ -74,8 +81,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
       setTimeout(() => {
         onSuccess?.()
         onClose()
-        window.location.replace('/login')
-      }, 1500)
+      }, 800)
     } catch (err) {
       const errorData = err.response?.data || {}
       setError(errorData.detail || err.message || 'Failed to change password')
@@ -101,30 +107,32 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Current Password */}
-          <div>
-            <label htmlFor="oldPassword" className="mb-2 block text-sm font-semibold text-slate-700">
-              Current Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPasswords.old ? 'text' : 'password'}
-                id="oldPassword"
-                name="oldPassword"
-                value={formData.oldPassword}
-                onChange={handleInputChange}
-                className="w-full rounded-lg border border-slate-300 px-4 py-2 pr-10 text-slate-900 focus:border-blue-500 focus:outline-none"
-                placeholder="Enter your current password"
-              />
-              <button
-                type="button"
-                onClick={() => toggleShowPassword('old')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
-              >
-                {showPasswords.old ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+          {requiresCurrentPassword && (
+            <div>
+              <label htmlFor="oldPassword" className="mb-2 block text-sm font-semibold text-slate-700">
+                Current Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPasswords.old ? 'text' : 'password'}
+                  id="oldPassword"
+                  name="oldPassword"
+                  value={formData.oldPassword}
+                  onChange={handleInputChange}
+                  className="w-full rounded-lg border border-slate-300 px-4 py-2 pr-10 text-slate-900 focus:border-blue-500 focus:outline-none"
+                  placeholder="Enter your current password"
+                />
+                <button
+                  type="button"
+                  onClick={() => toggleShowPassword('old')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  aria-label={showPasswords.old ? 'Hide current password' : 'Show current password'}
+                >
+                  {showPasswords.old ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* New Password */}
           <div>
@@ -145,6 +153,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
                 type="button"
                 onClick={() => toggleShowPassword('new')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                aria-label={showPasswords.new ? 'Hide new password' : 'Show new password'}
               >
                 {showPasswords.new ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -170,6 +179,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
                 type="button"
                 onClick={() => toggleShowPassword('confirm')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                aria-label={showPasswords.confirm ? 'Hide confirmed password' : 'Show confirmed password'}
               >
                 {showPasswords.confirm ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -186,7 +196,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
           {/* Success Message */}
           {success && (
             <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-              Password changed successfully. Signing you out everywhere...
+              Password changed successfully. Signing you out...
             </div>
           )}
 

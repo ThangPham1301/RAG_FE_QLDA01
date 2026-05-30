@@ -1,28 +1,33 @@
 import { KeyRound, MailCheck, ShieldCheck } from 'lucide-react'
+import { useState } from 'react'
 import SecuritySettingRow from '../ui/SecuritySettingRow'
 import { useAppSettings } from '../../context/AppSettingsContext'
 import { useAuth } from '../../context/AuthContext'
-import { updateTwoFactor } from '../../services/authService'
-import { useState } from 'react'
+import { toggleTwoFactor } from '../../services/authService'
 
 function AccountSecurityPanel({ onChangePasswordClick }) {
     const { user, updateUser } = useAuth()
     const { t } = useAppSettings()
-    const [twoFactorLoading, setTwoFactorLoading] = useState(false)
-    const [twoFactorError, setTwoFactorError] = useState(null)
     const emailVerified = !!user?.is_email_verified
-    const twoFactorEnabled = !!user?.two_factor_enabled
+    const twoFactorEnabled = !!user?.is_two_factor_enabled
+    const [twoFactorLoading, setTwoFactorLoading] = useState(false)
+    const [twoFactorMessage, setTwoFactorMessage] = useState('')
+    const [twoFactorError, setTwoFactorError] = useState('')
 
     const handleToggleTwoFactor = async () => {
-        setTwoFactorError(null)
         setTwoFactorLoading(true)
+        setTwoFactorMessage('')
+        setTwoFactorError('')
 
         try {
-            const updatedUser = await updateTwoFactor(!twoFactorEnabled)
-            updateUser(updatedUser)
+            const response = await toggleTwoFactor(!twoFactorEnabled)
+            if (response.user) {
+                updateUser(response.user)
+            }
+            setTwoFactorMessage(response.message || 'Two-factor authentication updated.')
         } catch (err) {
             const errorData = err.response?.data || {}
-            setTwoFactorError(errorData.detail || errorData.error || err.message || 'Unable to update two-factor authentication')
+            setTwoFactorError(errorData.detail || err.message || 'Could not update two-factor authentication.')
         } finally {
             setTwoFactorLoading(false)
         }
@@ -41,17 +46,12 @@ function AccountSecurityPanel({ onChangePasswordClick }) {
                 />
                 <SecuritySettingRow
                     icon={<ShieldCheck size={17} />}
-                    title="Two-factor authentication"
-                    description={twoFactorEnabled ? 'Email OTP is required when signing in.' : 'Require an email OTP after password login.'}
-                    actionLabel={twoFactorLoading ? 'SAVING...' : twoFactorEnabled ? 'DISABLE' : 'ENABLE'}
-                    actionTone={twoFactorEnabled ? 'danger' : 'neutral'}
-                    onAction={twoFactorLoading ? undefined : handleToggleTwoFactor}
+                    title="Two-Factor Authentication"
+                    description={twoFactorEnabled ? 'Email OTP is required after password or Google login.' : 'Require an email OTP before entering the app.'}
+                    toggled={twoFactorEnabled}
+                    onAction={handleToggleTwoFactor}
+                    disabled={twoFactorLoading || !emailVerified}
                 />
-                {twoFactorError && (
-                    <div className="rounded-lg bg-red-50 p-3 text-xs font-medium text-red-700">
-                        {twoFactorError}
-                    </div>
-                )}
                 <SecuritySettingRow
                     icon={<KeyRound size={17} />}
                     title={t.changePassword}
@@ -60,6 +60,21 @@ function AccountSecurityPanel({ onChangePasswordClick }) {
                     onAction={onChangePasswordClick}
                 />
             </div>
+            {twoFactorMessage && (
+                <div className="mt-3 rounded-lg bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
+                    {twoFactorMessage}
+                </div>
+            )}
+            {twoFactorError && (
+                <div className="mt-3 rounded-lg bg-red-50 p-3 text-xs font-medium text-red-700">
+                    {twoFactorError}
+                </div>
+            )}
+            {!emailVerified && (
+                <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs font-medium text-amber-800">
+                    Verify your email before enabling two-factor authentication.
+                </div>
+            )}
         </section>
     )
 }

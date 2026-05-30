@@ -1,4 +1,5 @@
 import apiClient from './api'
+import { clearAuth } from '../utils/auth'
 
 /**
  * Sign up with email and password
@@ -90,6 +91,19 @@ export const verifyOTP = async (email, otp, purpose = 'password_reset') => {
     otp,
     purpose,
   })
+  return response.data
+}
+
+/**
+ * Verify OTP for a pending two-factor login challenge
+ */
+export const verifyLoginOTP = async (email, otp, challengeToken) => {
+  const response = await apiClient.post('/auth/verify-otp', {
+    email,
+    otp,
+    purpose: 'login_2fa',
+    challenge_token: challengeToken,
+  })
 
   if (response.data.tokens) {
     localStorage.setItem('accessToken', response.data.tokens.access)
@@ -122,9 +136,7 @@ export const confirmPasswordReset = async (token, password, passwordConfirm) => 
     password,
     password_confirm: passwordConfirm,
   })
-  localStorage.removeItem('accessToken')
-  localStorage.removeItem('refreshToken')
-  localStorage.removeItem('user')
+  clearAuth({ notify: true, reason: 'password_reset' })
   return response.data
 }
 
@@ -161,6 +173,21 @@ export const uploadAvatar = async (file) => {
 }
 
 /**
+ * Enable or disable email OTP two-factor authentication
+ */
+export const toggleTwoFactor = async (enabled) => {
+  const response = await apiClient.post('/auth/2fa', {
+    enabled,
+  })
+
+  if (response.data.user) {
+    localStorage.setItem('user', JSON.stringify(response.data.user))
+  }
+
+  return response.data
+}
+
+/**
  * Change password
  */
 export const changePassword = async (oldPassword, newPassword, newPasswordConfirm) => {
@@ -169,20 +196,7 @@ export const changePassword = async (oldPassword, newPassword, newPasswordConfir
     new_password: newPassword,
     new_password_confirm: newPasswordConfirm,
   })
-  localStorage.removeItem('accessToken')
-  localStorage.removeItem('refreshToken')
-  localStorage.removeItem('user')
-  return response.data
-}
-
-/**
- * Enable or disable email OTP two-factor authentication.
- */
-export const updateTwoFactor = async (enabled) => {
-  const response = await apiClient.patch('/auth/2fa', {
-    enabled,
-  })
-  localStorage.setItem('user', JSON.stringify(response.data))
+  clearAuth({ notify: true, reason: 'password_changed' })
   return response.data
 }
 
@@ -201,10 +215,7 @@ export const logout = async () => {
   try {
     await apiClient.post('/auth/logout')
   } finally {
-    // Clear local storage
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('user')
+    clearAuth({ notify: true, reason: 'logout' })
   }
 }
 
