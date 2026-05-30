@@ -45,11 +45,15 @@ function ChatSidebar() {
     selectedProject,
     setSelectedProject,
     setProjects,
+    projectsLoading,
+    projectsError,
+    loadProjects,
     selectedChat,
     setSelectedChat,
   } = useChat()
 
   const [sessions, setSessions] = useState([])
+  const [sessionsError, setSessionsError] = useState('')
   const [creatingProject, setCreatingProject] = useState(false)
   const [documents, setDocuments] = useState([])
   const [expandedProjectId, setExpandedProjectId] = useState(null)
@@ -69,14 +73,20 @@ function ChatSidebar() {
     setSelectedChat(null)
     setDocuments([])
     setSessions([])
+    setSessionsError('')
 
     ChatAPI.listSessions(selectedProject.id)
       .then((response) => {
         if (!mounted) return
         const data = response.data.results || response.data || []
         setSessions(data)
+        setSessionsError('')
       })
-      .catch((error) => console.error(error))
+      .catch((error) => {
+        console.error(error)
+        if (!mounted) return
+        setSessionsError(error?.response?.data?.detail || error?.response?.data?.error || 'Cannot load chats.')
+      })
 
     return () => {
       mounted = false
@@ -427,7 +437,9 @@ function ChatSidebar() {
                   )
                 })
               ) : (
-                <div className="px-3 py-2 text-sm text-slate-600">No chats yet</div>
+                <div className={`px-3 py-2 text-sm ${sessionsError ? 'text-amber-100' : 'text-slate-600'}`}>
+                  {sessionsError || 'No chats yet'}
+                </div>
               )}
             </div>
           )}
@@ -495,7 +507,28 @@ function ChatSidebar() {
               <div className="space-y-3 pt-1">
                 {renderProjectTree()}
               </div>
-            ) : null}
+            ) : (
+              <div className="px-3 pb-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-300">
+                  {projectsLoading ? (
+                    <span>Loading projects...</span>
+                  ) : projectsError ? (
+                    <div className="space-y-2">
+                      <p className="text-amber-100">{projectsError}</p>
+                      <button
+                        type="button"
+                        onClick={loadProjects}
+                        className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : (
+                    <span>No projects yet</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {navAfterProjects.map(({ label, icon: Icon, to }) => {

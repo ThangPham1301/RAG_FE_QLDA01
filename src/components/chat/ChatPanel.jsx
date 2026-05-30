@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, ChevronDown, FileText, Send, Share2, Star, Upload, Users } from 'lucide-react'
+import { AlertCircle, ChevronDown, Download, FileText, Send, Share2, Star, Upload, Users } from 'lucide-react'
 import { ChatAPI, DocumentsAPI } from '../../api/client'
 import { useChat } from '../../context/useChat'
 import ProjectEmptyChatView from './ProjectEmptyChatView'
@@ -21,6 +21,7 @@ function ChatPanel() {
   const [creatingSession, setCreatingSession] = useState(false)
   const [uploadingFile, setUploadingFile] = useState(false)
   const [fileActionStatus, setFileActionStatus] = useState('')
+  const [exportingChat, setExportingChat] = useState(false)
   const [isTeamPickerOpen, setIsTeamPickerOpen] = useState(false)
   const [isSharedPickerOpen, setIsSharedPickerOpen] = useState(false)
   // Bước 5: state chọn file
@@ -301,6 +302,70 @@ function ChatPanel() {
     }
   }
 
+  const exportChat = async (format = 'docx') => {
+    if (!selectedChat?.id || selectedChat?.isTemporary || exportingChat) return
+    try {
+      setExportingChat(true)
+      setFileActionStatus('Exporting chat...')
+      const response = await ChatAPI.exportSession(selectedChat.id, format)
+      const blob = response.data instanceof Blob
+        ? response.data
+        : new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `chat-${selectedChat.id}.${format}`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      setFileActionStatus('Chat exported.')
+    } catch (error) {
+      console.error('[Chat] export error:', error)
+      if (error?.response?.status === 404 && messages.length > 0) {
+        exportChatFromBrowser()
+        setFileActionStatus('Chat exported from browser.')
+      } else {
+        setFileActionStatus(error?.response?.data?.detail || 'Cannot export this chat.')
+      }
+    } finally {
+      setExportingChat(false)
+    }
+  }
+
+  const escapeHtml = (value) => String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+
+  const exportChatFromBrowser = () => {
+    const rows = messages.map((message) => `
+      <h2>${escapeHtml(String(message.role || '').toUpperCase())}</h2>
+      <p>${escapeHtml(message.content).replace(/\n/g, '<br />')}</p>
+      ${(message.sources || []).length > 0
+        ? `<p><strong>Sources:</strong> ${escapeHtml((message.sources || []).map((source) => source.document_title || source.document_id || source).join(', '))}</p>`
+        : ''}
+    `).join('')
+    const html = `<!doctype html>
+      <html>
+        <head><meta charset="utf-8"><title>${escapeHtml(selectedChat.title || 'Chat export')}</title></head>
+        <body>
+          <h1>${escapeHtml(selectedChat.title || 'Chat export')}</h1>
+          ${rows}
+        </body>
+      </html>`
+    const blob = new Blob([html], { type: 'application/msword;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `chat-${selectedChat.id}.doc`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
   // Tên file đang chọn để hiển thị trên nút
   const selectedDocLabel = selectedDocumentId
     ? (chatDocuments.find((d) => d.id === selectedDocumentId)?.title || `File #${selectedDocumentId}`)
@@ -538,6 +603,16 @@ function ChatPanel() {
                 aria-label="Add from Shared with me"
               >
                 <Share2 size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => exportChat('docx')}
+                disabled={exportingChat}
+                className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Export chat"
+                aria-label="Export chat"
+              >
+                <Download size={15} />
               </button>
             </div>
             {fileActionStatus && <span className="truncate text-xs text-slate-500">{fileActionStatus}</span>}

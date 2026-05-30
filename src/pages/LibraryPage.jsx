@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import topbarAvatar from '../assets/library/topbar-avatar.png'
-import { DocumentsAPI, TeamsAPI } from '../api/client'
+import { DocumentsAPI, TeamsAPI, UsersAPI } from '../api/client'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
 import LibraryDocumentPanel from '../components/layout/LibraryDocumentPanel'
 import LibraryHeader from '../components/layout/LibraryHeader'
@@ -30,6 +30,8 @@ function LibraryPage() {
     const [bulkShareIds, setBulkShareIds] = useState([])
     const [shareEmail, setShareEmail] = useState('')
     const [shareStatus, setShareStatus] = useState('')
+    const [shareSuggestions, setShareSuggestions] = useState([])
+    const [shareSuggestionsLoading, setShareSuggestionsLoading] = useState(false)
 
     const loadDocuments = useCallback(async () => {
         setIsLoading(true)
@@ -63,6 +65,33 @@ function LibraryPage() {
         }
     }, [loadDocuments])
 
+    useEffect(() => {
+        const query = shareEmail.trim()
+        if (!(shareDoc || bulkShareIds.length > 0) || query.length < 2 || query.includes(',')) {
+            setShareSuggestions([])
+            return undefined
+        }
+
+        let active = true
+        const timer = window.setTimeout(async () => {
+            try {
+                setShareSuggestionsLoading(true)
+                const response = await UsersAPI.search(query)
+                if (active) setShareSuggestions(response.data?.results || [])
+            } catch (err) {
+                console.error('User search failed:', err)
+                if (active) setShareSuggestions([])
+            } finally {
+                if (active) setShareSuggestionsLoading(false)
+            }
+        }, 250)
+
+        return () => {
+            active = false
+            window.clearTimeout(timer)
+        }
+    }, [shareEmail, shareDoc, bulkShareIds.length])
+
     const submitShare = async () => {
         if ((!shareDoc && bulkShareIds.length === 0) || !shareEmail.trim()) return
         try {
@@ -76,6 +105,7 @@ function LibraryPage() {
                 setShareStatus('Shared successfully.')
             }
             setShareEmail('')
+            setShareSuggestions([])
             await loadDocuments()
             setTimeout(() => {
                 setShareDoc(null)
@@ -206,10 +236,31 @@ function LibraryPage() {
                                 placeholder="recipient@gmail.com"
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-400"
                             />
+                            {(shareSuggestionsLoading || shareSuggestions.length > 0) && (
+                                <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                                    {shareSuggestionsLoading && <div className="px-3 py-2 text-xs text-slate-500">Searching...</div>}
+                                    {shareSuggestions.map((suggestion) => (
+                                        <button
+                                            key={suggestion.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setShareEmail(suggestion.email)
+                                                setShareSuggestions([])
+                                            }}
+                                            className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-slate-50"
+                                        >
+                                            <span className="min-w-0">
+                                                <span className="block truncate font-semibold text-slate-800">{suggestion.full_name}</span>
+                                                <span className="block truncate text-xs text-slate-500">{suggestion.email}</span>
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                             {shareStatus && <p className="text-sm text-slate-600">{shareStatus}</p>}
                         </div>
                         <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
-                            <button type="button" onClick={() => { setShareDoc(null); setBulkShareIds([]); setShareEmail(''); setShareStatus('') }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                            <button type="button" onClick={() => { setShareDoc(null); setBulkShareIds([]); setShareEmail(''); setShareStatus(''); setShareSuggestions([]) }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
                                 Cancel
                             </button>
                             <button type="button" onClick={submitShare} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white">

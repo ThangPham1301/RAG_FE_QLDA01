@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Download, Eye, File, FileImage, FileText, LogOut, RefreshCw, Send, Upload, UserMinus, Users, X } from 'lucide-react'
-import { DocumentsAPI, TeamsAPI } from '../api/client'
+import { DocumentsAPI, TeamsAPI, UsersAPI } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import ArchiveSidebar from '../components/layout/ArchiveSidebar'
 import WorkspaceTopBar from '../components/layout/WorkspaceTopBar'
@@ -13,6 +13,9 @@ function TeamPage() {
   const [invitations, setInvitations] = useState([])
   const [teamName, setTeamName] = useState('')
   const [inviteEmails, setInviteEmails] = useState({})
+  const [activeInviteTeamId, setActiveInviteTeamId] = useState(null)
+  const [inviteSuggestions, setInviteSuggestions] = useState([])
+  const [inviteSuggestionsLoading, setInviteSuggestionsLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [uploadingTeamId, setUploadingTeamId] = useState(null)
   const [message, setMessage] = useState('')
@@ -57,6 +60,49 @@ function TeamPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!activeInviteTeamId) {
+      setInviteSuggestions([])
+      return undefined
+    }
+    const value = String(inviteEmails[activeInviteTeamId] || '')
+    const parts = value.split(/[,\n]/)
+    const query = (parts[parts.length - 1] || '').trim()
+    if (query.length < 2) {
+      setInviteSuggestions([])
+      return undefined
+    }
+
+    let active = true
+    const timer = window.setTimeout(async () => {
+      try {
+        setInviteSuggestionsLoading(true)
+        const response = await UsersAPI.search(query)
+        if (active) setInviteSuggestions(response.data?.results || [])
+      } catch (error) {
+        console.error('User search failed:', error)
+        if (active) setInviteSuggestions([])
+      } finally {
+        if (active) setInviteSuggestionsLoading(false)
+      }
+    }, 250)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [activeInviteTeamId, inviteEmails])
+
+  const selectInviteSuggestion = (teamId, email) => {
+    setInviteEmails((current) => {
+      const value = String(current[teamId] || '')
+      const separatorMatch = value.match(/^(.*[,\n])[^,\n]*$/)
+      const prefix = separatorMatch ? separatorMatch[1] : ''
+      return { ...current, [teamId]: `${prefix}${email}, ` }
+    })
+    setInviteSuggestions([])
+  }
+
   const createTeam = async () => {
     const name = teamName.trim()
     if (!name) return
@@ -83,6 +129,7 @@ function TeamPage() {
       setLoading(true)
       await TeamsAPI.invite(teamId, emails)
       setInviteEmails((current) => ({ ...current, [teamId]: '' }))
+      setInviteSuggestions([])
       await loadData()
     } catch (error) {
       console.error(error)
@@ -303,12 +350,35 @@ function TeamPage() {
                     </div>
 
                     <div className="mt-4 flex gap-2">
-                      <input
-                        value={inviteEmails[team.id] || ''}
-                        onChange={(event) => setInviteEmails((current) => ({ ...current, [team.id]: event.target.value }))}
-                        placeholder="email1@gmail.com, email2@gmail.com"
-                        className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-400"
-                      />
+                      <div className="relative min-w-0 flex-1">
+                        <input
+                          value={inviteEmails[team.id] || ''}
+                          onFocus={() => setActiveInviteTeamId(team.id)}
+                          onChange={(event) => {
+                            setActiveInviteTeamId(team.id)
+                            setInviteEmails((current) => ({ ...current, [team.id]: event.target.value }))
+                          }}
+                          placeholder="email1@gmail.com, email2@gmail.com"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                        />
+                        {activeInviteTeamId === team.id && (inviteSuggestionsLoading || inviteSuggestions.length > 0) && (
+                          <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                            {inviteSuggestionsLoading && <div className="px-3 py-2 text-xs text-slate-500">Searching...</div>}
+                            {inviteSuggestions.map((suggestion) => (
+                              <button
+                                key={suggestion.id}
+                                type="button"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => selectInviteSuggestion(team.id, suggestion.email)}
+                                className="flex w-full flex-col border-b border-slate-100 px-3 py-2 text-left last:border-b-0 hover:bg-slate-50"
+                              >
+                                <span className="truncate text-sm font-semibold text-slate-800">{suggestion.full_name}</span>
+                                <span className="truncate text-xs text-slate-500">{suggestion.email}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <button type="button" onClick={() => inviteUsers(team.id)} disabled={loading} className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
                         <Send size={14} />
                         Invite

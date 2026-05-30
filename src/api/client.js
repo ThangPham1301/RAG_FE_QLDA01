@@ -98,8 +98,16 @@ export const ChatAPI = {
   updateSession: (id, payload) => client.patch(`/chat/sessions/${id}/`, payload),
   delete: (id) => client.delete(`/chat/sessions/${id}/`),
   getMessages: (sessionId) => client.get(`/chat/sessions/${sessionId}/messages/`),
+  exportSession: (sessionId, format = 'pdf') => client.get(`/chat/sessions/${sessionId}/export/`, {
+    params: { format },
+    responseType: format === 'json' ? 'json' : 'blob',
+  }),
   getEvaluation: (sessionId) => client.get('/chat/evaluations/', { params: { chat_session: sessionId } }),
   saveEvaluation: (payload) => client.post('/chat/evaluations/', payload),
+}
+
+export const UsersAPI = {
+  search: (query) => client.get('/auth/users/search', { params: { q: query } }),
 }
 
 

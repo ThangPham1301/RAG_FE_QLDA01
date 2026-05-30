@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Settings, X, SmilePlus } from 'lucide-react'
+import { FolderPlus, X } from 'lucide-react'
 
 function CreateProjectModal({ open, onClose, onCreate, loading }) {
   const [name, setName] = useState('')
@@ -33,41 +33,37 @@ function CreateProjectModal({ open, onClose, onCreate, loading }) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm" onClick={onClose}>
       <form
         onSubmit={handleSubmit}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-170 rounded-3xl border border-white/10 bg-[#222222] px-6 py-5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.5)]"
+        className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white px-6 py-5 text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.24)]"
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 className="rounded-lg text-[34px] font-medium leading-none tracking-[-0.04em] text-white">Create project</h2>
+          <div>
+            <h2 className="font-['Manrope'] text-2xl font-extrabold leading-tight text-slate-950">Create project</h2>
+            <p className="mt-1 text-sm text-slate-500">Add a workspace for chats and documents.</p>
+          </div>
 
-          <div className="flex items-center gap-4 text-white">
-            <button
-              type="button"
-              className="rounded-full p-1 text-white/90 transition hover:bg-white/10 hover:text-white"
-              aria-label="Settings"
-            >
-              <Settings size={22} strokeWidth={1.8} />
-            </button>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full p-1 text-white/90 transition hover:bg-white/10 hover:text-white"
+              className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
               aria-label="Close"
             >
-              <X size={22} strokeWidth={1.8} />
+              <X size={18} strokeWidth={2} />
             </button>
           </div>
         </div>
 
-        <div className="mt-6">
-          <label htmlFor="project-name" className="mb-3 block text-xl font-medium text-white">
+        <div className="mt-5">
+          <label htmlFor="project-name" className="mb-2 block text-sm font-semibold text-slate-800">
             Project name
           </label>
 
-          <div className="flex items-center rounded-2xl border border-white/10 bg-[#2b2b2b] px-4 py-3.5 shadow-inner shadow-black/20">
-            <SmilePlus size={22} className="mr-3 shrink-0 text-white/55" strokeWidth={1.8} />
+          <div className="flex items-center rounded-xl border border-slate-300 bg-white px-3 py-2.5 shadow-sm transition focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100">
+            <FolderPlus size={18} className="mr-2.5 shrink-0 text-slate-400" strokeWidth={1.8} />
             <input
               id="project-name"
               value={name}
@@ -75,16 +71,23 @@ function CreateProjectModal({ open, onClose, onCreate, loading }) {
               autoFocus
               placeholder="Copenhagen Trip"
               disabled={loading}
-              className="w-full bg-transparent text-xl text-white outline-none placeholder:text-white/35 disabled:opacity-60"
+              className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60"
             />
           </div>
         </div>
 
-        <div className="mt-8 flex justify-end">
+        <div className="mt-6 flex justify-end gap-2 border-t border-slate-200 pt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             disabled={!name.trim() || loading}
-            className="min-w-40 rounded-full bg-[#6a6a6a] px-5 py-3 text-[16px] font-medium text-[#1a1a1a] shadow-[0_10px_24px_rgba(0,0,0,0.25)] transition disabled:cursor-not-allowed disabled:opacity-70"
+            className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? 'Creating...' : 'Create project'}
           </button>
