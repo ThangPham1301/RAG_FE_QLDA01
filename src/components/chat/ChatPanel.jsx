@@ -348,6 +348,16 @@ function ChatPanel() {
           </div>
         )}
 
+        {evaluationStatus && (
+          <div className={`mx-auto mb-3 flex max-w-190 items-center gap-2 rounded-2xl border px-4 py-3 text-xs shadow-sm ${
+            evaluationStatus.includes('Không thể')
+              ? 'border-rose-200 bg-rose-50 text-rose-700'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          }`}>
+            <span>{evaluationStatus}</span>
+          </div>
+        )}
+
         {selectedChat && !selectedChat.isTemporary && (
           <div className="mx-auto mb-2 flex max-w-190 items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">

@@ -37,6 +37,7 @@ const buildWebSocketUrl = () => {
 
 export const RealtimeProvider = ({ children }) => {
   const { isAuthenticated, user } = useAuth()
+  const userId = user?.id
   const [notifications, setNotifications] = useState([])
   const [connected, setConnected] = useState(false)
   const socketRef = useRef(null)
@@ -70,7 +71,7 @@ export const RealtimeProvider = ({ children }) => {
   }, [loadNotifications])
 
   useEffect(() => {
-    if (!isAuthenticated || !user || !getAccessToken()) return undefined
+    if (!isAuthenticated || !userId || !getAccessToken()) return undefined
 
     let cancelled = false
 
@@ -132,7 +133,7 @@ export const RealtimeProvider = ({ children }) => {
       if (socketRef.current) socketRef.current.close()
       setConnected(false)
     }
-  }, [dispatchRealtimeEvent, isAuthenticated, user])
+  }, [dispatchRealtimeEvent, isAuthenticated, userId])
 
   const markNotificationRead = async (id) => {
     await NotificationsAPI.markRead(id)

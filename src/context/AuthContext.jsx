@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }) => {
           try {
             const userData = await getCurrentUser()
             setUser(userData)
-          } catch (err) {
+          } catch {
             // Token invalid, clear auth
             finishLocalLogout()
           }
