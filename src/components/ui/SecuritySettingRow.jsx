@@ -8,6 +8,7 @@ function SecuritySettingRow({
     statusLabel,
     statusTone = 'neutral',
     onAction,
+    disabled = false,
 }) {
     const actionClass =
         actionTone === 'danger'
@@ -33,7 +34,7 @@ function SecuritySettingRow({
             </div>
 
             {actionLabel ? (
-                <button type="button" onClick={onAction} className={`text-xs font-bold tracking-wide ${actionClass}`}>
+                <button type="button" onClick={onAction} disabled={disabled} className={`text-xs font-bold tracking-wide disabled:cursor-not-allowed disabled:opacity-50 ${actionClass}`}>
                     {actionLabel}
                 </button>
             ) : statusLabel ? (
@@ -44,8 +45,10 @@ function SecuritySettingRow({
                 <button
                     type="button"
                     aria-pressed={toggled}
+                    onClick={onAction}
+                    disabled={disabled}
                     className={`relative h-7 w-12 rounded-full transition ${toggled ? 'bg-blue-800' : 'bg-slate-300'
-                        }`}
+                        } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                     <span
                         className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${toggled ? 'left-6' : 'left-1'

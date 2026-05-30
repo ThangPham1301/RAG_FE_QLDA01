@@ -1,10 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import PrimaryButton from '../ui/PrimaryButton'
 import TextInput from '../ui/TextInput'
 import { useAuth } from '../../context/AuthContext'
 import { isAdminUser } from '../ProtectedRoute'
-import { googleLogin, login } from '../../services/authService'
+import { googleLogin, login, verifyLoginOTP } from '../../services/authService'
 
 function LoginPanel() {
   const navigate = useNavigate()
@@ -16,8 +16,25 @@ function LoginPanel() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [loginStep, setLoginStep] = useState('credentials')
+  const [pendingEmail, setPendingEmail] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [otp, setOtp] = useState('')
   const googleButtonRef = useRef(null)
   const googleConfigured = Boolean(googleClientId && !googleClientId.startsWith('your-'))
+
+  const completeLogin = useCallback((response) => {
+    authLogin(response.user, response.tokens)
+    navigate(isAdminUser(response.user) ? '/dashboard' : '/library', { replace: true })
+  }, [authLogin, navigate])
+
+  const startTwoFactorStep = useCallback((response) => {
+    setPendingEmail(response.email || email)
+    setChallengeToken(response.challenge_token || '')
+    setOtp('')
+    setLoginStep('otp')
+    setError(null)
+  }, [email])
 
   useEffect(() => {
     if (!googleConfigured) {
@@ -37,8 +54,11 @@ function LoginPanel() {
 
       try {
         const response = await googleLogin(credentialResponse.credential)
-        authLogin(response.user, response.tokens)
-        navigate(isAdminUser(response.user) ? '/dashboard' : '/library', { replace: true })
+        if (response.requires_2fa) {
+          startTwoFactorStep(response)
+          return
+        }
+        completeLogin(response)
       } catch (err) {
         const errorData = err.response?.data || {}
         const errorMessage = errorData.detail || errorData.error || err.message || 'Google login failed'
@@ -97,7 +117,7 @@ function LoginPanel() {
       cancelled = true
       script.onload = null
     }
-  }, [authLogin, googleClientId, googleConfigured, navigate, setAuthError])
+  }, [completeLogin, googleClientId, googleConfigured, setAuthError, startTwoFactorStep])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -115,6 +135,11 @@ function LoginPanel() {
     try {
       console.log('📡 [LOGIN] Calling authService.login()...')
       const response = await login(email, password)
+
+      if (response.requires_2fa) {
+        startTwoFactorStep(response)
+        return
+      }
       
       console.log('✅ [LOGIN] Login response received:')
       console.log('   Message:', response.message)
@@ -135,11 +160,10 @@ function LoginPanel() {
       console.log('   user:', storedUser ? '✅ Saved' : '❌ Not saved')
 
       console.log('🔐 [LOGIN] Calling authLogin() from context...')
-      authLogin(response.user, response.tokens)
+      completeLogin(response)
       
       console.log('✨ [LOGIN] authLogin() completed')
       console.log('🚀 [LOGIN] Navigating after role check...')
-      navigate(isAdminUser(response.user) ? '/dashboard' : '/library')
       console.log('✅ [LOGIN] Navigate called (should redirect now)')
     } catch (err) {
       console.error('❌ [LOGIN] Error during login:', err)
@@ -185,6 +209,37 @@ function LoginPanel() {
     navigate('/forgot-password')
   }
 
+  const handleVerifyLoginOTP = async (e) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!otp || otp.length !== 6) {
+      setError('Please enter the 6-digit OTP sent to your email')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const response = await verifyLoginOTP(pendingEmail, otp, challengeToken)
+      completeLogin(response)
+    } catch (err) {
+      const errorData = err.response?.data || {}
+      const errorMessage = errorData.detail || err.message || 'OTP verification failed'
+      setError(errorMessage)
+      setAuthError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleBackToCredentials = () => {
+    setLoginStep('credentials')
+    setChallengeToken('')
+    setOtp('')
+    setError(null)
+  }
+
   return (
     <section className="w-full max-w-md rounded-2xl border border-white/40 bg-white/75 p-10 shadow-[0_28px_64px_rgba(15,23,42,0.14)] backdrop-blur-xl">
       <div className="space-y-1">
@@ -196,6 +251,41 @@ function LoginPanel() {
         </p>
       </div>
 
+      {loginStep === 'otp' ? (
+        <form onSubmit={handleVerifyLoginOTP} className="mt-8 space-y-4">
+          <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+            We sent a 6-digit verification code to {pendingEmail}. Enter it to finish signing in.
+          </div>
+
+          <TextInput
+            label="OTP CODE"
+            type="text"
+            placeholder="123456"
+            value={otp}
+            onChange={(value) => setOtp(value.replace(/\D/g, '').slice(0, 6))}
+            error={error}
+            required
+          />
+
+          {error && (
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <PrimaryButton type="submit" loading={loading}>
+            VERIFY AND SIGN IN
+          </PrimaryButton>
+
+          <button
+            type="button"
+            onClick={handleBackToCredentials}
+            className="w-full text-center text-sm font-semibold text-blue-900 transition hover:text-blue-700"
+          >
+            Back to email and password
+          </button>
+        </form>
+      ) : (
       <form onSubmit={handleLogin} className="mt-8 space-y-4">
         <TextInput
           label="EMAIL ADDRESS"
@@ -248,6 +338,7 @@ function LoginPanel() {
           )}
         </div>
       </form>
+      )}
 
       <p className="mt-8 text-center text-sm text-slate-600">
         Don't have an account?{' '}

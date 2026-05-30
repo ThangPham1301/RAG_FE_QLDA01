@@ -1,7 +1,7 @@
 import axios from 'axios'
+import { clearAuth } from '../utils/auth'
 
 const API_BASE = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE || 'http://localhost:8000/api'
-let isRedirectingToLogin = false
 
 const client = axios.create({
   baseURL: API_BASE,
@@ -48,17 +48,7 @@ client.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${response.data.access}`
         return client(originalRequest)
       } catch (refreshError) {
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-
-        // Avoid hard-reload loops when we're already on auth pages.
-        const path = window.location.pathname
-        const isAuthRoute = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/verify-email'
-        if (!isAuthRoute && !isRedirectingToLogin) {
-          isRedirectingToLogin = true
-          window.location.replace('/login')
-        }
+        clearAuth({ notify: true, reason: 'session_expired' })
         return Promise.reject(refreshError)
       }
     }
@@ -188,6 +178,24 @@ export const EvaluationsAPI = {
   stats: () => client.get('/chat/evaluations/stats/'),
   pin: (id) => client.post(`/chat/evaluations/${id}/pin/`),
   unpin: (id) => client.post(`/chat/evaluations/${id}/unpin/`),
+}
+
+export const AdminUsersAPI = {
+  listUsers: (params = {}) => client.get('/auth/admin/users', { params }),
+  setStatus: (id, isActive) => client.patch(`/auth/admin/users/${id}/status`, { is_active: isActive }),
+  setRole: (id, role) => client.patch(`/auth/admin/users/${id}/role`, { role }),
+  setGroups: (id, groupIds) => client.patch(`/auth/admin/users/${id}/groups`, { group_ids: groupIds }),
+  resetPassword: (id, password, passwordConfirm) => client.post(`/auth/admin/users/${id}/reset-password`, {
+    password,
+    password_confirm: passwordConfirm,
+  }),
+  deleteUser: (id) => client.delete(`/auth/admin/users/${id}`),
+  logs: (id) => client.get(`/auth/admin/users/${id}/logs`),
+  listGroups: () => client.get('/auth/admin/groups'),
+  createGroup: (payload) => client.post('/auth/admin/groups', payload),
+  updateGroup: (id, payload) => client.patch(`/auth/admin/groups/${id}`, payload),
+  deleteGroup: (id) => client.delete(`/auth/admin/groups/${id}`),
+  listPermissions: () => client.get('/auth/admin/permissions'),
 }
 
 export default client

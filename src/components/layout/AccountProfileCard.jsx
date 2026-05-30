@@ -6,6 +6,9 @@ import { useAuth } from '../../context/AuthContext'
 function AccountProfileCard({ onEditProfileClick, onEditAvatarClick }) {
   const { user } = useAuth()
   const { t } = useAppSettings()
+  const roleKey = user?.is_superuser ? 'superadmin' : user?.is_staff ? 'admin' : 'user'
+  const roleLabel = t.roles?.[roleKey] || user?.role || t.roles?.user || 'User'
+
     return (
         <section className="rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
             <div className="flex flex-wrap items-start justify-between gap-5">
@@ -34,9 +37,15 @@ function AccountProfileCard({ onEditProfileClick, onEditAvatarClick }) {
                         <h2 className="font-['Manrope'] text-2xl font-extrabold text-slate-900">
                             {user?.first_name || 'User'} {user?.last_name || ''}
                         </h2>
-                        <p className="mt-1 max-w-md text-sm text-slate-600">
-                            {user?.bio || t.userProfile}
-                        </p>
+                        <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] text-blue-800 ring-1 ring-blue-100">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+                            <span>{t.role}: {roleLabel}</span>
+                        </div>
+                        {user?.bio && (
+                            <p className="mt-3 max-w-md text-sm text-slate-600">
+                                {user.bio}
+                            </p>
+                        )}
                     </div>
                 </div>
 

@@ -1,4 +1,9 @@
 /**
+ * Event fired when auth data is cleared in the current tab.
+ */
+export const AUTH_LOGOUT_EVENT = 'auth:logout'
+
+/**
  * Get stored access token
  */
 export const getAccessToken = () => {
@@ -42,10 +47,14 @@ export const setTokens = (accessToken, refreshToken) => {
 /**
  * Clear all auth data
  */
-export const clearAuth = () => {
+export const clearAuth = ({ notify = false, reason = 'logout' } = {}) => {
   localStorage.removeItem('accessToken')
   localStorage.removeItem('refreshToken')
   localStorage.removeItem('user')
+
+  if (notify && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(AUTH_LOGOUT_EVENT, { detail: { reason } }))
+  }
 }
 
 /**

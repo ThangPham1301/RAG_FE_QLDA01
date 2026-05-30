@@ -1,13 +1,29 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useCallback, useContext, useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { getCurrentUser, logout as logoutAPI } from '../services/authService'
-import { getStoredUser, getAccessToken, clearAuth } from '../utils/auth'
+import { AUTH_LOGOUT_EVENT, getStoredUser, getAccessToken, clearAuth } from '../utils/auth'
 
 const AuthContext = createContext()
+const AUTH_ROUTES = new Set(['/login', '/register', '/forgot-password', '/verify-email'])
+const SESSION_CHECK_INTERVAL_MS = 10000
 
 export const AuthProvider = ({ children }) => {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const isAuthRoute = AUTH_ROUTES.has(location.pathname)
+
+  const finishLocalLogout = useCallback(() => {
+    clearAuth()
+    setUser(null)
+    setError(null)
+
+    if (!isAuthRoute) {
+      navigate('/login', { replace: true })
+    }
+  }, [isAuthRoute, navigate])
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -23,8 +39,7 @@ export const AuthProvider = ({ children }) => {
             setUser(userData)
           } catch (err) {
             // Token invalid, clear auth
-            clearAuth()
-            setUser(null)
+            finishLocalLogout()
           }
         } else {
           setUser(null)
@@ -39,7 +54,73 @@ export const AuthProvider = ({ children }) => {
     }
 
     initAuth()
-  }, [])
+  }, [finishLocalLogout])
+
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      finishLocalLogout()
+    }
+
+    const handleStorageChange = (event) => {
+      const authKeys = new Set(['accessToken', 'refreshToken', 'user'])
+      if (event.storageArea === localStorage && authKeys.has(event.key) && event.newValue === null) {
+        finishLocalLogout()
+      }
+    }
+
+    window.addEventListener(AUTH_LOGOUT_EVENT, handleAuthLogout)
+    window.addEventListener('storage', handleStorageChange)
+
+    return () => {
+      window.removeEventListener(AUTH_LOGOUT_EVENT, handleAuthLogout)
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [finishLocalLogout])
+
+  useEffect(() => {
+    if (loading || isAuthRoute || !getAccessToken()) {
+      return undefined
+    }
+
+    let cancelled = false
+
+    const verifySession = async () => {
+      if (!getAccessToken()) {
+        finishLocalLogout()
+        return
+      }
+
+      try {
+        const userData = await getCurrentUser()
+        if (!cancelled) {
+          setUser(userData)
+          localStorage.setItem('user', JSON.stringify(userData))
+        }
+      } catch (err) {
+        const status = err.response?.status
+        if (!cancelled && (!getAccessToken() || status === 401 || status === 403)) {
+          finishLocalLogout()
+        }
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        verifySession()
+      }
+    }
+
+    const intervalId = window.setInterval(verifySession, SESSION_CHECK_INTERVAL_MS)
+    window.addEventListener('focus', verifySession)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', verifySession)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [finishLocalLogout, isAuthRoute, loading])
 
   const login = (userData, tokens) => {
     console.log('🔐 [AuthContext] login() called with:', {
@@ -69,7 +150,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('Logout error:', err)
       // Still clear local state even if API call fails
-      clearAuth()
+      clearAuth({ notify: true, reason: 'logout' })
     }
     setUser(null)
     setError(null)
