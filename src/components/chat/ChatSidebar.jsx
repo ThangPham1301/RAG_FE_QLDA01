@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   BookOpen,
@@ -11,16 +11,14 @@ import {
   LayoutDashboard,
   MessageSquare,
   Settings,
-  Upload,
   Trash2,
   Users,
 } from 'lucide-react'
 import { ChatAPI, DocumentsAPI, ProjectsAPI, TeamsAPI } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { useChat } from '../../context/useChat'
-import { isAdminUser } from '../ProtectedRoute'
+import { isAdminUser, isSuperAdminUser } from '../ProtectedRoute'
 import CreateProjectModal from './CreateProjectModal'
-import TeamDocumentPickerModal from './TeamDocumentPickerModal'
 
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
@@ -41,6 +39,7 @@ const getDocumentIconStyle = (fileType) => {
 function ChatSidebar() {
   const { user } = useAuth()
   const isAdmin = isAdminUser(user)
+  const isSuperAdmin = isSuperAdminUser(user)
   const {
     projects,
     selectedProject,
@@ -52,13 +51,9 @@ function ChatSidebar() {
 
   const [sessions, setSessions] = useState([])
   const [creatingProject, setCreatingProject] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState({ phase: 'idle', message: '' })
   const [documents, setDocuments] = useState([])
   const [expandedProjectId, setExpandedProjectId] = useState(null)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
-  const [isTeamPickerOpen, setIsTeamPickerOpen] = useState(false)
-  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (!selectedProject?.id) {
@@ -91,6 +86,7 @@ function ChatSidebar() {
   useEffect(() => {
     if (selectedChat?.id && selectedProject?.id) {
       setExpandedProjectId(selectedProject.id)
+      setDocuments(selectedChat.documents || [])
       setSessions((prev) => {
         const existingIndex = prev.findIndex((session) => session.id === selectedChat.id)
         if (existingIndex >= 0) {
@@ -274,39 +270,6 @@ function ChatSidebar() {
     }
   }
 
-  const uploadFiles = async (files) => {
-    if (!selectedChat?.id || !files || files.length === 0) return
-    const formData = new FormData()
-    for (const file of files) formData.append('files', file)
-    let phaseTimer = null
-    try {
-      setUploading(true)
-      setUploadStatus({ phase: 'uploading', message: 'Đang tải file lên...' })
-      phaseTimer = setTimeout(() => {
-        setUploadStatus({ phase: 'indexing', message: 'Đang index file để có thể hỏi đáp...' })
-      }, 900)
-
-      const response = await DocumentsAPI.upload(selectedChat.id, formData)
-      if (phaseTimer) clearTimeout(phaseTimer)
-      const uploadedDocs = response.data.documents || []
-      setUploadStatus({ phase: 'success', message: `Đã tải lên ${uploadedDocs.length} file.` })
-
-      const refreshed = await ChatAPI.getSession(selectedChat.id)
-      const detail = refreshed.data
-      setSelectedChat(detail)
-      setDocuments(detail.documents || [])
-      setSessions((list) => list.map((item) => (item.id === detail.id ? detail : item)))
-    } catch (error) {
-      console.error(error)
-      if (phaseTimer) clearTimeout(phaseTimer)
-      const errorMessage = error?.response?.data?.detail || error?.response?.data?.message || 'Upload failed'
-      setUploadStatus({ phase: 'error', message: String(errorMessage) })
-    } finally {
-      setUploading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
-  }
-
   const refreshSelectedChatDocuments = async () => {
     if (!selectedChat?.id) return
     try {
@@ -330,11 +293,13 @@ function ChatSidebar() {
     }
   }, [selectedChat?.id])
 
-  const visibleNavItems = isAdmin
-    ? NAV_ITEMS.filter((item) => ['/dashboard', '/account'].includes(item.to))
-    : NAV_ITEMS.filter((item) => item.to !== '/dashboard')
-  const navBeforeChat = visibleNavItems.filter((item) => ['/dashboard', '/library'].includes(item.to))
-  const navAfterChat = visibleNavItems.filter((item) => !['/dashboard', '/library'].includes(item.to))
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (!isAdmin && item.to === '/dashboard') return false
+    if (isSuperAdmin && ['/library', '/chat', '/team'].includes(item.to)) return false
+    return true
+  })
+  const navBeforeProjects = visibleNavItems.filter((item) => ['/dashboard', '/library', '/chat'].includes(item.to))
+  const navAfterProjects = visibleNavItems.filter((item) => !['/dashboard', '/library', '/chat'].includes(item.to))
 
   const renderProjectTree = () => {
     if (!projects || projects.length === 0) {
@@ -456,39 +421,6 @@ function ChatSidebar() {
                           ) : (
                             <div className="px-3 py-2 text-sm text-slate-600">No files in this chat</div>
                           )}
-
-                          <div className="px-3 pb-1">
-                            <input
-                              ref={fileInputRef}
-                              type="file"
-                              multiple
-                              hidden
-                              onChange={(event) => uploadFiles(event.target.files)}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                              disabled={!selectedChat || uploading}
-                              className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <Upload size={14} />
-                              <span className="font-medium">Upload file</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setIsTeamPickerOpen(true)}
-                              disabled={!selectedChat || uploading}
-                              className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <Users size={14} />
-                              <span className="font-medium">Add from Team</span>
-                            </button>
-                            {(uploading || uploadStatus.phase === 'success' || uploadStatus.phase === 'error') && (
-                              <div className={`mt-2 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${uploadStatus.phase === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : uploadStatus.phase === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'}`}>
-                                <span>{uploadStatus.message}</span>
-                              </div>
-                            )}
-                          </div>
                         </div>
                       )}
                     </div>
@@ -518,7 +450,7 @@ function ChatSidebar() {
 
       <div className="mt-5 flex flex-1 flex-col px-3">
         <div className="space-y-1">
-          {navBeforeChat.map(({ label, icon: Icon, to }) => (
+          {navBeforeProjects.map(({ label, icon: Icon, to }) => (
             <NavLink
               key={label}
               to={to}
@@ -566,7 +498,7 @@ function ChatSidebar() {
             ) : null}
           </div>
 
-          {navAfterChat.map(({ label, icon: Icon, to }) => {
+          {navAfterProjects.map(({ label, icon: Icon, to }) => {
             if (!to) {
               return (
                 <button
@@ -614,12 +546,6 @@ function ChatSidebar() {
         onClose={() => setIsCreateProjectOpen(false)}
         onCreate={onCreateProject}
         loading={creatingProject}
-      />
-      <TeamDocumentPickerModal
-        open={isTeamPickerOpen}
-        chatSessionId={selectedChat?.id}
-        onClose={() => setIsTeamPickerOpen(false)}
-        onAttached={refreshSelectedChatDocuments}
       />
     </aside>
   )

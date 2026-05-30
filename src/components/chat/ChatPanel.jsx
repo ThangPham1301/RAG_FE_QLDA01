@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, ChevronDown, FileText, Send, Star } from 'lucide-react'
-import { ChatAPI } from '../../api/client'
+import { AlertCircle, ChevronDown, FileText, Send, Share2, Star, Upload, Users } from 'lucide-react'
+import { ChatAPI, DocumentsAPI } from '../../api/client'
 import { useChat } from '../../context/useChat'
 import ProjectEmptyChatView from './ProjectEmptyChatView'
+import SharedDocumentPickerModal from './SharedDocumentPickerModal'
+import TeamDocumentPickerModal from './TeamDocumentPickerModal'
 
 function ChatPanel() {
   const { selectedProject, selectedChat, setSelectedChat, setProjects } = useChat()
@@ -17,11 +19,16 @@ function ChatPanel() {
   const [evaluationEditorOpen, setEvaluationEditorOpen] = useState(false)
   const [savingEvaluation, setSavingEvaluation] = useState(false)
   const [creatingSession, setCreatingSession] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [fileActionStatus, setFileActionStatus] = useState('')
+  const [isTeamPickerOpen, setIsTeamPickerOpen] = useState(false)
+  const [isSharedPickerOpen, setIsSharedPickerOpen] = useState(false)
   // Bước 5: state chọn file
   const [selectedDocumentId, setSelectedDocumentId] = useState(null)
   const [docSelectorOpen, setDocSelectorOpen] = useState(false)
   const containerRef = useRef(null)
   const inputRef = useRef(null)
+  const fileInputRef = useRef(null)
   const docSelectorRef = useRef(null)
   const skipSessionLoadRef = useRef(null)
 
@@ -114,6 +121,33 @@ function ChatPanel() {
       inputRef.current.focus()
     }
   }, [selectedChat?.id])
+
+  const refreshSelectedChatDocuments = async () => {
+    if (!selectedChat?.id || selectedChat?.isTemporary) return
+    const response = await ChatAPI.getSession(selectedChat.id)
+    setSelectedChat(response.data)
+  }
+
+  const uploadFiles = async (files) => {
+    if (!selectedChat?.id || selectedChat?.isTemporary || !files || files.length === 0) return
+    const formData = new FormData()
+    for (const file of files) formData.append('files', file)
+
+    try {
+      setUploadingFile(true)
+      setFileActionStatus('Uploading...')
+      const response = await DocumentsAPI.upload(selectedChat.id, formData)
+      const uploadedDocs = response.data.documents || []
+      setFileActionStatus(`Uploaded ${uploadedDocs.length} file${uploadedDocs.length === 1 ? '' : 's'}.`)
+      await refreshSelectedChatDocuments()
+    } catch (error) {
+      console.error('[Chat] uploadFiles error:', error)
+      setFileActionStatus(error?.response?.data?.detail || error?.response?.data?.message || 'Upload failed.')
+    } finally {
+      setUploadingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const sendQuestion = async () => {
     const question = input.trim()
@@ -340,6 +374,7 @@ function ChatPanel() {
         </div>
       </div>
 
+      {selectedChat && (
       <div className="sticky bottom-0 z-10 border-t border-slate-200/80 bg-white/75 px-8 py-6 backdrop-blur-xl">
         {sendError && (
           <div className="mx-auto mb-3 flex max-w-190 items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700 shadow-sm" role="alert">
@@ -464,6 +499,51 @@ function ChatPanel() {
           </div>
         )}
 
+        {selectedChat && !selectedChat.isTemporary && (
+          <div className="mx-auto mb-2 flex max-w-190 items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                hidden
+                onChange={(event) => uploadFiles(event.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                disabled={uploadingFile}
+                className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Upload file"
+                aria-label="Upload file"
+              >
+                <Upload size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsTeamPickerOpen(true)}
+                disabled={uploadingFile}
+                className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Add from Team"
+                aria-label="Add from Team"
+              >
+                <Users size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSharedPickerOpen(true)}
+                disabled={uploadingFile}
+                className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Add from Shared with me"
+                aria-label="Add from Shared with me"
+              >
+                <Share2 size={15} />
+              </button>
+            </div>
+            {fileActionStatus && <span className="truncate text-xs text-slate-500">{fileActionStatus}</span>}
+          </div>
+        )}
+
         <div className="mx-auto flex max-w-190 items-center gap-2 rounded-3xl border border-slate-200 bg-white/90 p-2.5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl">
           <input
             ref={inputRef}
@@ -489,6 +569,19 @@ function ChatPanel() {
           </button>
         </div>
       </div>
+      )}
+      <TeamDocumentPickerModal
+        open={isTeamPickerOpen}
+        chatSessionId={selectedChat?.id}
+        onClose={() => setIsTeamPickerOpen(false)}
+        onAttached={refreshSelectedChatDocuments}
+      />
+      <SharedDocumentPickerModal
+        open={isSharedPickerOpen}
+        chatSessionId={selectedChat?.id}
+        onClose={() => setIsSharedPickerOpen(false)}
+        onAttached={refreshSelectedChatDocuments}
+      />
     </section>
   )
 }

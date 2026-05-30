@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export const isAdminUser = (user) => Boolean(user?.role === 'admin' || user?.is_staff || user?.is_superuser)
+export const isSuperAdminUser = (user) => Boolean(user?.role === 'superadmin' || user?.is_superuser)
 
 const LoadingScreen = () => (
   <div className="flex h-screen items-center justify-center">
@@ -12,7 +13,7 @@ const LoadingScreen = () => (
   </div>
 )
 
-export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false }) => {
+export const ProtectedRoute = ({ children, adminOnly = false, superAdminOnly = false, userOnly = false }) => {
   const { isAuthenticated, loading, user } = useAuth()
 
   if (loading) {
@@ -23,11 +24,15 @@ export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false }
     return <Navigate to="/login" replace />
   }
 
+  if (superAdminOnly && !isSuperAdminUser(user)) {
+    return <Navigate to={isAdminUser(user) ? '/dashboard' : '/library'} replace />
+  }
+
   if (adminOnly && !isAdminUser(user)) {
     return <Navigate to="/library" replace />
   }
 
-  if (userOnly && isAdminUser(user)) {
+  if (userOnly && isSuperAdminUser(user)) {
     return <Navigate to="/dashboard" replace />
   }
 

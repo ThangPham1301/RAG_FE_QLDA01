@@ -3,11 +3,7 @@ import { ClipboardList, Eye, EyeOff, KeyRound, Lock, RefreshCw, Search, Trash2, 
 import { AdminUsersAPI } from '../../api/client'
 import { useAppSettings } from '../../context/AppSettingsContext'
 import { useAuth } from '../../context/AuthContext'
-
-const formatDate = (value) => {
-  if (!value) return 'Never'
-  return new Date(value).toLocaleString()
-}
+import AccountLogList from './AccountLogList'
 
 const fillTemplate = (template, values = {}) => (
   Object.entries(values).reduce((text, [key, value]) => text.replace(`{${key}}`, value), template)
@@ -203,7 +199,6 @@ function AdminUserManagementPanel() {
               <option value="">{labels.allRoles}</option>
               <option value="user">User</option>
               <option value="admin">Admin</option>
-              <option value="superadmin">Superadmin</option>
             </select>
             <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
               <option value="">{labels.allStatuses}</option>
@@ -228,6 +223,8 @@ function AdminUserManagementPanel() {
               <div className="px-4 py-6 text-sm text-slate-500">{labels.states.emptyUsers}</div>
             ) : users.map((user) => {
               const selfRow = isCurrentUser(user)
+              const rootAdminRow = Boolean(user.is_superuser)
+              const protectedRow = selfRow || rootAdminRow
 
               return (
               <div key={user.id} className={`grid grid-cols-[minmax(240px,1.35fr)_140px_120px_minmax(260px,0.9fr)] items-center gap-4 border-t border-slate-100 px-4 py-3 text-sm text-slate-700 ${selfRow ? 'bg-slate-50/60' : ''}`}>
@@ -238,13 +235,13 @@ function AdminUserManagementPanel() {
                 <select
                   value={user.role}
                   onChange={(event) => handleRoleChange(user, event.target.value)}
-                  disabled={selfRow}
-                  title={selfRow ? 'You cannot change your own role' : ''}
+                  disabled={protectedRow}
+                  title={selfRow ? 'You cannot change your own role' : rootAdminRow ? 'Root admin role cannot be changed' : ''}
                   className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
-                  <option value="superadmin">Superadmin</option>
+                  {rootAdminRow && <option value="superadmin">Superadmin</option>}
                 </select>
                 <span className={`inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-bold ${user.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                   {user.is_active ? labels.status.active : labels.status.locked}
@@ -252,8 +249,8 @@ function AdminUserManagementPanel() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    title={selfRow ? 'You cannot lock your own account' : (user.is_active ? labels.actions.lock : labels.actions.unlock)}
-                    disabled={selfRow}
+                    title={selfRow ? 'You cannot lock your own account' : rootAdminRow ? 'Root admin account cannot be locked' : (user.is_active ? labels.actions.lock : labels.actions.unlock)}
+                    disabled={protectedRow}
                     onClick={() => handleStatusToggle(user)}
                     className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1.5 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -263,14 +260,16 @@ function AdminUserManagementPanel() {
                   <button
                     type="button"
                     onClick={() => setResetTarget(user)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-700"
+                    disabled={rootAdminRow}
+                    title={rootAdminRow ? 'Root admin password cannot be reset here' : labels.actions.reset}
+                    className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <KeyRound size={13} /> {labels.actions.reset}
                   </button>
                   <button type="button" onClick={() => showLogs(user)} className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-700">
                     <ClipboardList size={13} /> {labels.actions.log}
                   </button>
-                  <button type="button" disabled={selfRow} title={selfRow ? 'You cannot delete your own account' : labels.actions.delete} onClick={() => handleDeleteUser(user)} className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1.5 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
+                  <button type="button" disabled={protectedRow} title={selfRow ? 'You cannot delete your own account' : rootAdminRow ? 'Root admin account cannot be deleted' : labels.actions.delete} onClick={() => handleDeleteUser(user)} className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1.5 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
                     <Trash2 size={13} /> {labels.actions.delete}
                   </button>
                 </div>
@@ -285,15 +284,9 @@ function AdminUserManagementPanel() {
           <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 font-bold text-slate-900">
             <UsersRound size={17} /> {selectedUser ? `Log: ${selectedUser.email}` : labels.logs.emptyTitle}
           </div>
-          {logs.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-slate-500">{labels.logs.empty}</div>
-          ) : logs.map((item) => (
-            <div key={`${item.type}-${item.id}`} className="border-t border-slate-100 px-4 py-3 text-sm">
-              <div className="font-semibold text-slate-900">{item.title}</div>
-              <div className="text-xs text-slate-500">{formatDate(item.created_at)}</div>
-              <pre className="mt-2 overflow-x-auto rounded-lg bg-slate-50 p-2 text-xs text-slate-600">{JSON.stringify(item.metadata || {}, null, 2)}</pre>
-            </div>
-          ))}
+          <div className="p-4">
+            <AccountLogList logs={logs} emptyText={labels.logs.empty} />
+          </div>
         </div>
       )}
 

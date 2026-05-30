@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, ChevronDown, Languages, LogOut, Moon, SlidersHorizontal, UserRound } from 'lucide-react'
+import { Bell, ChevronDown, Languages, LogOut, Moon, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import defaultAvatar from '../../assets/account/topbar-avatar.png'
 import { useAppSettings } from '../../context/AppSettingsContext'
@@ -123,13 +123,6 @@ function WorkspaceTopBar({
                             </div>
                         )}
                     </div>
-                    <button
-                        type="button"
-                        className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
-                        aria-label="Preferences"
-                    >
-                        <SlidersHorizontal size={16} />
-                    </button>
                 </div>
                 <div className="h-8 w-px bg-slate-200" />
                 <div ref={menuRef} className="relative">
