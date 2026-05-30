@@ -39,7 +39,7 @@ function AdminUserManagementPanel() {
         role: filters.role || undefined,
         status: filters.status || undefined,
       })
-      setUsers(response.data || [])
+      setUsers(response.data?.results || response.data || [])
     } catch (err) {
       setError(err.response?.data?.detail || err.message || labels.messages.usersLoadFailed)
     } finally {
